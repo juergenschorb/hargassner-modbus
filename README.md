@@ -71,6 +71,7 @@ Die Attribute des Sensors zeigen Außentemperatur, Kurvenwert, Korrektur, maßge
 ## Fehlersuche
 
 - Beim Einrichten steht der genaue Grund hinter „Details:“ und im Protokoll (*Einstellungen → System → Protokolle*, Suche „Hargassner“). Zeigt das Formular noch alte Texte, den Browser-Zwischenspeicher leeren.
+- Läuft der modbus-proxy als Add-on auf demselben Home Assistant, als IP-Adresse den **Hostnamen des Add-ons** (steht auf der Infoseite des Add-ons) und den Port aus der Add-on-Konfiguration eintragen. Die HA-IP oder `localhost` gehen nur, wenn der Port unter „Netzwerk“ freigegeben ist.
 - Antwortet die eingegebene Geräteadresse nicht, probiert die Integration selbst 1, 0 und 255.
 - Für die gesendeten und empfangenen Modbus-Bytes in `configuration.yaml`:
 
