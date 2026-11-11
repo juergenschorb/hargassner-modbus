@@ -37,6 +37,7 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_UNIT,
     DOMAIN,
+    HK_SETPOINT_REGS,
     REG_KEEPALIVE,
 )
 import logging
@@ -223,6 +224,7 @@ class HargassnerOptionsFlow(OptionsFlow):
                 f"{hk}_min": int(user_input["min"]),
                 f"{hk}_max": int(user_input["max"]),
                 f"{hk}_rooms": list(user_input.get("rooms", [])),
+                f"{hk}_register": int(user_input.get("register", o.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))),
                 **{f"{hk}_{k}": float(user_input[k]) for k in DEFAULT_CURVE},
             }
             if new[f"{hk}_min"] >= new[f"{hk}_max"]:
@@ -240,6 +242,9 @@ class HargassnerOptionsFlow(OptionsFlow):
         )
         schema = vol.Schema(
             {
+                vol.Required("register", default=o.get(f"{hk}_register", HK_SETPOINT_REGS[hk])): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=65535, step=1, mode=selector.NumberSelectorMode.BOX)
+                ),
                 vol.Required("min", default=o.get(f"{hk}_min", DEFAULT_HK_MIN)): temp,
                 vol.Required("max", default=o.get(f"{hk}_max", DEFAULT_HK_MAX)): temp,
                 vol.Optional("rooms", default=o.get(f"{hk}_rooms", [])): selector.EntitySelector(

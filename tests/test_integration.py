@@ -333,3 +333,19 @@ async def test_flow_finds_other_unit(hass: HomeAssistant):
     finally:
         config_flow.ModbusClient = orig
         await b.stop()
+
+
+async def test_register_configurable(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"register": 7000, "min": 20, "max": 60, "rooms": [], "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 40}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
+    assert boiler.writes[-1] == (7000, [40])
+    assert hass.states.get("switch.hargassner_control_hc2").attributes["register"] == 7000

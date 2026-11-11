@@ -54,6 +54,7 @@
       "hk1": {
         "title": "Heating circuit 1",
         "data": {
+          "register": "Flow setpoint register",
           "min": "Flow minimum",
           "max": "Flow maximum",
           "rooms": "Rooms (thermostats)",
@@ -65,12 +66,14 @@
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
-          "out_cold": "Linear between the two points, extended beyond them."
+          "out_cold": "Linear between the two points, extended beyond them.",
+          "register": "6998 per Hargassner manual V01. Only change if your boiler is known to use another address."
         }
       },
       "hk2": {
         "title": "Heating circuit 2",
         "data": {
+          "register": "Flow setpoint register",
           "min": "Flow minimum",
           "max": "Flow maximum",
           "rooms": "Rooms (thermostats)",
@@ -82,7 +85,8 @@
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
-          "out_cold": "Linear between the two points, extended beyond them."
+          "out_cold": "Linear between the two points, extended beyond them.",
+          "register": "6999 per Hargassner manual V01. Only change if your boiler is known to use another address."
         }
       }
     },

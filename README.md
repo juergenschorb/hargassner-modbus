@@ -14,6 +14,7 @@ Registerbelegung laut Hargassner-Anleitung „Zubehör Loxone“ V01.
 - „Restwärme HK1/HK2“ als Ja/Nein, z. B. um Heizkörperventile offen zu halten
 - Optional Puffer oben/Mitte/unten und Boiler
 - **HK2 vorgeben**: Schalter und Sollwert. Nur wenn der Schalter an ist, schreibt Home Assistant die Vorlauftemperatur HK2 (Register 6999) alle 60 s und bei jeder Änderung. Nach der Einrichtung ist er **aus**.
+- Die Register für den Vorlauf-Soll lassen sich je Heizkreis unter *Konfigurieren* ändern (Standard laut Anleitung V01: HK1 6998, HK2 6999).
 - **HK1 vorgeben**: genauso für HK1 (Register 6998), eigener Schalter, ebenfalls **aus**. Beide Heizkreise sind unabhängig voneinander.
 
 > **HK1/HK2 vorgeben** wirkt nur, wenn der Heizkreis am Kessel auf „Loxone“ (externe Vorgabe) steht. Dann gilt die Heizkurve des Kessels für diesen Heizkreis nicht mehr: Home Assistant muss die Vorlauftemperatur selbst passend zur Außentemperatur vorgeben. Was der Kessel macht, wenn Home Assistant ausfällt (Lebenszeichen bleibt aus), bitte im Kesselmenü bzw. in der Hargassner-Anleitung zur Loxone-Schnittstelle prüfen.

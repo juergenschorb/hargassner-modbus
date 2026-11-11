@@ -66,6 +66,9 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def options(self) -> dict[str, Any]:
         return {**self.config_entry.data, **self.config_entry.options}
 
+    def register(self, hk: str) -> int:
+        return int(self.options.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))
+
     def limits(self, hk: str) -> tuple[int, int]:
         o = self.options
         return int(o.get(f"{hk}_min", DEFAULT_HK_MIN)), int(o.get(f"{hk}_max", DEFAULT_HK_MAX))
@@ -184,10 +187,10 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         lo, hi = self.limits(hk)
         value = int(round(max(lo, min(hi, setpoint))))
         try:
-            await self.client.write_registers(HK_SETPOINT_REGS[hk], [value])
+            await self.client.write_registers(self.register(hk), [value])
         except ModbusError as err:
             _LOGGER.warning("Vorlauf-Soll %s (%s °C) nicht geschrieben: %s", hk.upper(), value, err)
-            self.last_write[hk] = {"ok": False, "value": value, "error": str(err)}
+            self.last_write[hk] = {"ok": False, "value": value, "register": self.register(hk), "error": str(err)}
         else:
-            self.last_write[hk] = {"ok": True, "value": value}
+            self.last_write[hk] = {"ok": True, "value": value, "register": self.register(hk)}
         self.async_update_listeners()

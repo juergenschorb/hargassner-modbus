@@ -51,9 +51,10 @@ class HkWriteSwitch(HargassnerEntity, SwitchEntity, RestoreEntity):
     @property
     def extra_state_attributes(self):
         lw = self.coordinator.last_write[self._hk]
-        if not lw:
-            return None
-        return {"zuletzt_geschrieben": lw.get("value"), "schreiben_ok": lw.get("ok"), "fehler": lw.get("error")}
+        attrs = {"register": self.coordinator.register(self._hk)}
+        if lw:
+            attrs |= {"zuletzt_geschrieben": lw.get("value"), "schreiben_ok": lw.get("ok"), "fehler": lw.get("error")}
+        return attrs
 
     async def async_turn_on(self, **kwargs) -> None:
         self.coordinator.write_enabled[self._hk] = True

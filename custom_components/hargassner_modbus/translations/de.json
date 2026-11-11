@@ -54,6 +54,7 @@
       "hk1": {
         "title": "Heizkreis 1",
         "data": {
+          "register": "Register Vorlauf-Soll",
           "min": "Vorlauf mindestens",
           "max": "Vorlauf höchstens",
           "rooms": "Räume (Thermostate)",
@@ -65,12 +66,14 @@
         "data_description": {
           "rooms": "Thermostate der Räume an HK1 (OG/DG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
-          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert."
+          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
+          "register": "Laut Hargassner-Anleitung V01 6998. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt."
         }
       },
       "hk2": {
         "title": "Heizkreis 2",
         "data": {
+          "register": "Register Vorlauf-Soll",
           "min": "Vorlauf mindestens",
           "max": "Vorlauf höchstens",
           "rooms": "Räume (Thermostate)",
@@ -82,7 +85,8 @@
         "data_description": {
           "rooms": "Thermostate der Räume an HK2 (EG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
-          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert."
+          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
+          "register": "Laut Hargassner-Anleitung V01 6999. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt."
         }
       }
     },
