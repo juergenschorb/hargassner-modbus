@@ -285,7 +285,7 @@ async def test_flow_wrong_unit_reports_no_response(hass: HomeAssistant):
         from custom_components.hargassner_modbus import config_flow
 
         orig = config_flow.ModbusClient
-        config_flow.ModbusClient = lambda h, p, u, timeout=8: orig(h, p, u, timeout=0.3)
+        config_flow.ModbusClient = lambda h, p, u, timeout=10: orig(h, p, u, timeout=0.2)
         result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"host": "127.0.0.1", "port": port, "unit": 1, "boiler_type": "nano"}
@@ -308,4 +308,28 @@ async def test_flow_modbus_exception(hass: HomeAssistant):
         assert result["errors"] == {"base": "modbus_exception"}
         assert "Register 6499" in result["description_placeholders"]["details"]
     finally:
+        await b.stop()
+
+
+async def test_flow_keeps_entered_port_on_error(hass: HomeAssistant):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"host": "127.0.0.1", "port": 1, "unit": 3, "boiler_type": "nano"}
+    )
+    schema = {str(k): k.default() for k in result["data_schema"].schema}
+    assert schema["port"] == 1 and schema["unit"] == 3 and schema["host"] == "127.0.0.1"
+
+
+async def test_flow_finds_other_unit(hass: HomeAssistant):
+    from custom_components.hargassner_modbus import config_flow
+
+    b = FakeBoiler(BOILER_VALUES, unit=0)
+    port = await b.start()
+    orig = config_flow.ModbusClient
+    config_flow.ModbusClient = lambda h, p, u, timeout=6: orig(h, p, u, timeout=0.3)
+    try:
+        result = await _setup_via_flow(hass, port)
+        assert result["data"]["unit"] == 0
+    finally:
+        config_flow.ModbusClient = orig
         await b.stop()

@@ -9,7 +9,10 @@ der Modbus-Integration von Home Assistant gibt.
 from __future__ import annotations
 
 import asyncio
+import logging
 import struct
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ModbusError(Exception):
@@ -79,12 +82,14 @@ class ModbusClient:
                 frame = struct.pack(">HHHB", tid, 0, len(pdu) + 1, self.unit) + pdu
                 try:
                     assert self._writer is not None and self._reader is not None
+                    _LOGGER.debug("-> %s:%s %s", self.host, self.port, frame.hex(" "))
                     self._writer.write(frame)
                     await self._writer.drain()
                     while True:
                         head = await asyncio.wait_for(self._reader.readexactly(7), self.timeout)
                         r_tid, _proto, length, _unit = struct.unpack(">HHHB", head)
                         body = await asyncio.wait_for(self._reader.readexactly(length - 1), self.timeout)
+                        _LOGGER.debug("<- %s:%s %s", self.host, self.port, (head + body).hex(" "))
                         if r_tid == tid:
                             break  # alte Antworten (nach Timeout) überspringen
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:

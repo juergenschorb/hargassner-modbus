@@ -68,6 +68,18 @@ Die Attribute des Sensors zeigen Außentemperatur, Kurvenwert, Korrektur, maßge
 
 **Senden:** Ist „HKx Automatik“ an, wird der berechnete Wert statt „Vorlauf HKx Vorgabe“ gesendet, aber nur wenn auch **„HKx vorgeben“** an ist. Tipp: Erst nur den Sensor beobachten und mit dem Kesselwert vergleichen, dann einschalten.
 
+## Fehlersuche
+
+- Beim Einrichten steht der genaue Grund hinter „Details:“ und im Protokoll (*Einstellungen → System → Protokolle*, Suche „Hargassner“). Zeigt das Formular noch alte Texte, den Browser-Zwischenspeicher leeren.
+- Antwortet die eingegebene Geräteadresse nicht, probiert die Integration selbst 1, 0 und 255.
+- Für die gesendeten und empfangenen Modbus-Bytes in `configuration.yaml`:
+
+```yaml
+logger:
+  logs:
+    custom_components.hargassner_modbus: debug
+```
+
 ## Umstellen von Loxone
 
 1. **Lesen:** Integration einrichten, „HK2 vorgeben“ bleibt aus. Werte mit dem Kesseldisplay vergleichen. Loxone regelt weiter.
@@ -106,4 +118,4 @@ pytest
 
 ## Stand
 
-Version 0.3.0.
+Version 0.3.2.

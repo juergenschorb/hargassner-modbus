@@ -61,13 +61,30 @@ def _plausible(v: float, lo: float, hi: float) -> bool:
     return math.isfinite(v) and lo <= v <= hi and (v == 0 or abs(v) >= 0.01)
 
 
-async def probe(host: str, port: int, unit: int) -> bool:
+async def probe_any_unit(host: str, port: int, unit: int) -> tuple[bool, int]:
+    """Wie probe; antwortet die Geräteadresse nicht, auch 1, 0 und 255 probieren."""
+    try:
+        return await probe(host, port, unit), unit
+    except ModbusNoResponse as first:
+        for other in (1, 0, 255):
+            if other == unit:
+                continue
+            try:
+                swap = await probe(host, port, other, timeout=3)
+            except ModbusNoResponse:
+                continue
+            _LOGGER.warning("Hargassner antwortet nicht auf Geräteadresse %s, aber auf %s", unit, other)
+            return swap, other
+        raise first
+
+
+async def probe(host: str, port: int, unit: int, timeout: float = 6) -> bool:
     """Verbindung prüfen und Wortreihenfolge der Floats erkennen.
 
     Gibt word_swap zurück. Außen- und Kesseltemperatur müssen in einer der beiden
     Reihenfolgen plausibel sein; passt beides (oder keins), gilt die Voreinstellung.
     """
-    client = ModbusClient(host, port, unit, timeout=8)
+    client = ModbusClient(host, port, unit, timeout=timeout)
     reg = REG_KEEPALIVE
     try:
         await client.read_holding(REG_KEEPALIVE, 2)
@@ -101,7 +118,7 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(f"{host}:{port}:{unit}")
             self._abort_if_unique_id_configured()
             try:
-                swap = await probe(host, port, unit)
+                swap, unit = await probe_any_unit(host, port, unit)
             except ModbusConnectError as err:
                 errors["base"] = "cannot_connect"
                 details = str(err)
@@ -131,13 +148,13 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_HOST, default=(user_input or {}).get(CONF_HOST, "")): str,
-                vol.Required(CONF_PORT, default=DEFAULT_PORT): selector.NumberSelector(
+                vol.Required(CONF_PORT, default=int((user_input or {}).get(CONF_PORT, DEFAULT_PORT))): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=1, max=65535, mode=selector.NumberSelectorMode.BOX)
                 ),
-                vol.Required(CONF_UNIT, default=DEFAULT_UNIT): selector.NumberSelector(
+                vol.Required(CONF_UNIT, default=int((user_input or {}).get(CONF_UNIT, DEFAULT_UNIT))): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=247, mode=selector.NumberSelectorMode.BOX)
                 ),
-                vol.Required(CONF_BOILER_TYPE, default=BOILER_NANO): selector.SelectSelector(
+                vol.Required(CONF_BOILER_TYPE, default=(user_input or {}).get(CONF_BOILER_TYPE, BOILER_NANO)): selector.SelectSelector(
                     selector.SelectSelectorConfig(options=[BOILER_NANO, BOILER_ECO], translation_key="boiler_type")
                 ),
             }
