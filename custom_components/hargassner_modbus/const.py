@@ -90,3 +90,17 @@ READ_REGISTERS: tuple[Reg, ...] = (
     Reg("boiler_temp", 10, extra=True),
     Reg("boiler_zustand", 190, "code", extra=True),
 )
+
+# ---------- Vorlauf-Berechnung (Heizkurve + Raumbedarf) ----------
+CONF_HEAT_LIMIT = "heat_limit"  # ab dieser Außentemperatur nur noch Mindest-Vorlauf
+CONF_ROOM_GAIN = "room_gain"  # K Vorlauf je K Raum zu kalt/zu warm
+CONF_ROOM_BOOST_MAX = "room_boost_max"
+CONF_ROOM_LOWER_MAX = "room_lower_max"
+DEFAULT_HEAT_LIMIT = 18.0
+DEFAULT_ROOM_GAIN = 3.0
+DEFAULT_ROOM_BOOST_MAX = 10.0
+DEFAULT_ROOM_LOWER_MAX = 5.0
+ROOM_DEADBAND = 0.2  # kleinere Abweichungen ignorieren
+
+# je Heizkreis: f"{hk}_rooms", f"{hk}_out_cold", f"{hk}_flow_cold", f"{hk}_out_warm", f"{hk}_flow_warm"
+DEFAULT_CURVE = {"out_cold": -10.0, "flow_cold": 50.0, "out_warm": 15.0, "flow_warm": 28.0}

@@ -17,6 +17,7 @@ Registerbelegung laut Hargassner-Anleitung „Zubehör Loxone“ V01.
 - **HK1 vorgeben**: genauso für HK1 (Register 6998), eigener Schalter, ebenfalls **aus**. Beide Heizkreise sind unabhängig voneinander.
 
 > **HK1/HK2 vorgeben** wirkt nur, wenn der Heizkreis am Kessel auf „Loxone“ (externe Vorgabe) steht. Dann gilt die Heizkurve des Kessels für diesen Heizkreis nicht mehr: Home Assistant muss die Vorlauftemperatur selbst passend zur Außentemperatur vorgeben. Was der Kessel macht, wenn Home Assistant ausfällt (Lebenszeichen bleibt aus), bitte im Kesselmenü bzw. in der Hargassner-Anleitung zur Loxone-Schnittstelle prüfen.
+- **Vorlauf berechnen (Automatik)**: Heizkurve nach Außentemperatur plus Anhebung/Absenkung nach Raumbedarf, siehe unten
 - Fällt die Verbindung weg, werden die Werte „nicht verfügbar“ und die Integration verbindet sich selbst neu
 - Eigener schlanker Modbus-Client, keine Abhängigkeit von pymodbus
 
@@ -46,7 +47,26 @@ Ordner `custom_components/hargassner_modbus` nach `/config/custom_components/` k
 
 Beim Einrichten liest die Integration Lebenszeichen, Außen- und Kesseltemperatur und erkennt daraus die Wortreihenfolge der Kommazahlen selbst.
 
-Unter **Konfigurieren** lassen sich ändern: Kesseltyp, Mindest- und Höchstwert für den Vorlauf HK1 und HK2 (je Standard 20–60 °C, darüber wird nie geschrieben), Puffer und Boiler abfragen, Wortreihenfolge.
+Unter **Konfigurieren** gibt es drei Bereiche:
+
+- **Allgemein und Raumbedarf:** Kesseltyp, Puffer und Boiler abfragen, Wortreihenfolge, Heizgrenze und Stärke der Raumkorrektur.
+- **Heizkreis 1 / Heizkreis 2:** Mindest- und Höchstwert für den Vorlauf (Standard 20–60 °C, darüber wird nie geschrieben), die **Räume** (Thermostate) dieses Heizkreises und die Heizkurve. Räume lassen sich jederzeit hinzufügen oder entfernen.
+
+## Vorlauf berechnen
+
+Je Heizkreis gibt es den Sensor **„Vorlauf HKx berechnet“** und den Schalter **„HKx Automatik“**.
+
+1. **Heizkurve:** Zwei Punkte, z. B. −10 °C außen → 50 °C Vorlauf und +15 °C außen → 28 °C Vorlauf. Dazwischen wird gerade gerechnet, außerhalb verlängert. Als Außentemperatur dient die **gemittelte** Außentemperatur des Kessels.
+2. **Raumbedarf:** Aus den ausgewählten Thermostaten (z. B. Versatile Thermostat, Better Thermostat) zählt der Raum mit der größten Lücke Soll − Ist. Thermostate, die aus oder nicht verfügbar sind, zählen nicht.
+   - Raum zu kalt: Vorlauf + (Lücke × „Anhebung je K“, Standard 3), höchstens „Anhebung höchstens“ (10 K).
+   - Alle Räume über Soll: Vorlauf entsprechend tiefer, höchstens „Absenkung höchstens“ (5 K).
+   - Abweichungen bis 0,2 K werden ignoriert.
+3. **Heizgrenze:** Ab der eingestellten gemittelten Außentemperatur (Standard 18 °C) gilt nur noch der Mindest-Vorlauf.
+4. Das Ergebnis wird auf ganze Grad gerundet und auf Mindest-/Höchstwert begrenzt.
+
+Die Attribute des Sensors zeigen Außentemperatur, Kurvenwert, Korrektur, maßgeblichen Raum und Grund, z. B. „EG Bad 1,2 K zu kalt“.
+
+**Senden:** Ist „HKx Automatik“ an, wird der berechnete Wert statt „Vorlauf HKx Vorgabe“ gesendet, aber nur wenn auch **„HKx vorgeben“** an ist. Tipp: Erst nur den Sensor beobachten und mit dem Kesselwert vergleichen, dann einschalten.
 
 ## Umstellen von Loxone
 
@@ -86,4 +106,4 @@ pytest
 
 ## Stand
 
-Version 0.2.0.
+Version 0.3.0.

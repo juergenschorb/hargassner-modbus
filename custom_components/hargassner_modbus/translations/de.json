@@ -26,24 +26,67 @@
     "step": {
       "init": {
         "title": "Einstellungen",
+        "menu_options": {
+          "general": "Allgemein und Raumbedarf",
+          "hk1": "Heizkreis 1 (OG/DG)",
+          "hk2": "Heizkreis 2 (EG)"
+        }
+      },
+      "general": {
+        "title": "Allgemein",
         "data": {
           "boiler_type": "Kesseltyp",
-          "hk1_min": "Vorlauf HK1 mindestens",
-          "hk1_max": "Vorlauf HK1 höchstens",
-          "hk2_min": "Vorlauf HK2 mindestens",
-          "hk2_max": "Vorlauf HK2 höchstens",
           "extras": "Puffer und Boiler abfragen",
-          "word_swap": "Wortreihenfolge tauschen (Float)"
+          "word_swap": "Wortreihenfolge tauschen (Float)",
+          "heat_limit": "Heizgrenze (Außentemperatur)",
+          "room_gain": "Anhebung je K Raum zu kalt",
+          "room_boost_max": "Anhebung höchstens",
+          "room_lower_max": "Absenkung höchstens"
         },
         "data_description": {
-          "hk1_max": "Nur nutzen, wenn HK1 am Kessel auf „Loxone“ steht. Höher wird nie geschrieben.",
           "word_swap": "Wird beim Einrichten automatisch erkannt. Nur ändern, wenn die Temperaturen Unsinn zeigen.",
-          "hk2_max": "Höher wird nie geschrieben, auch wenn eine Automation mehr vorgibt."
+          "heat_limit": "Ab dieser gemittelten Außentemperatur wird nur noch der Mindest-Vorlauf vorgegeben.",
+          "room_gain": "Ist der kälteste Raum 1 K unter Soll, steigt der Vorlauf um diesen Wert. Sind alle Räume über Soll, sinkt er entsprechend."
+        }
+      },
+      "hk1": {
+        "title": "Heizkreis 1",
+        "data": {
+          "min": "Vorlauf mindestens",
+          "max": "Vorlauf höchstens",
+          "rooms": "Räume (Thermostate)",
+          "out_cold": "Heizkurve: kalter Punkt, außen",
+          "flow_cold": "Heizkurve: kalter Punkt, Vorlauf",
+          "out_warm": "Heizkurve: warmer Punkt, außen",
+          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf"
+        },
+        "data_description": {
+          "rooms": "Thermostate der Räume an HK1 (OG/DG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
+          "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
+          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert."
+        }
+      },
+      "hk2": {
+        "title": "Heizkreis 2",
+        "data": {
+          "min": "Vorlauf mindestens",
+          "max": "Vorlauf höchstens",
+          "rooms": "Räume (Thermostate)",
+          "out_cold": "Heizkurve: kalter Punkt, außen",
+          "flow_cold": "Heizkurve: kalter Punkt, Vorlauf",
+          "out_warm": "Heizkurve: warmer Punkt, außen",
+          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf"
+        },
+        "data_description": {
+          "rooms": "Thermostate der Räume an HK2 (EG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
+          "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
+          "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert."
         }
       }
     },
     "error": {
-      "min_max": "Mindestwert muss unter dem Höchstwert liegen."
+      "min_max": "Mindestwert muss unter dem Höchstwert liegen.",
+      "curve": "Der kalte Punkt muss eine niedrigere Außentemperatur haben als der warme."
     }
   },
   "selector": {
@@ -130,6 +173,12 @@
       },
       "lebenszeichen": {
         "name": "Lebenszeichen"
+      },
+      "hk1_vorlauf_berechnet": {
+        "name": "Vorlauf HK1 berechnet"
+      },
+      "hk2_vorlauf_berechnet": {
+        "name": "Vorlauf HK2 berechnet"
       }
     },
     "binary_sensor": {
@@ -149,6 +198,12 @@
       },
       "hk2_schreiben": {
         "name": "HK2 vorgeben"
+      },
+      "hk1_automatik": {
+        "name": "HK1 Automatik"
+      },
+      "hk2_automatik": {
+        "name": "HK2 Automatik"
       }
     },
     "number": {

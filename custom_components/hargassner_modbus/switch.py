@@ -15,7 +15,10 @@ from .entity import HargassnerEntity
 async def async_setup_entry(
     hass: HomeAssistant, entry: HargassnerConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities([HkWriteSwitch(entry.runtime_data, hk) for hk in ("hk1", "hk2")])
+    c = entry.runtime_data
+    async_add_entities(
+        [HkWriteSwitch(c, hk) for hk in ("hk1", "hk2")] + [HkAutoSwitch(c, hk) for hk in ("hk1", "hk2")]
+    )
 
 
 class HkWriteSwitch(HargassnerEntity, SwitchEntity, RestoreEntity):
@@ -60,3 +63,39 @@ class HkWriteSwitch(HargassnerEntity, SwitchEntity, RestoreEntity):
     async def async_turn_off(self, **kwargs) -> None:
         self.coordinator.write_enabled[self._hk] = False
         self.async_write_ha_state()
+
+
+class HkAutoSwitch(HargassnerEntity, SwitchEntity, RestoreEntity):
+    """An: berechneten Vorlauf (Heizkurve + Raumbedarf) senden. Aus: manuelle Vorgabe.
+
+    Geschrieben wird nur, wenn zusätzlich „HKx vorgeben“ an ist.
+    """
+
+    _attr_icon = "mdi:auto-mode"
+
+    def __init__(self, coordinator, hk: str) -> None:
+        super().__init__(coordinator, f"{hk}_automatik")
+        self._hk = hk
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        self.coordinator.auto[self._hk] = bool(last and last.state == "on")
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.auto[self._hk]
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self.coordinator.auto[self._hk] = True
+        self.async_write_ha_state()
+        await self.coordinator.async_write_hk(self._hk)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self.coordinator.auto[self._hk] = False
+        self.async_write_ha_state()
+        await self.coordinator.async_write_hk(self._hk)

@@ -162,14 +162,23 @@ async def test_options_extras_and_limits(hass: HomeAssistant):
     try:
         await _setup_via_flow(hass, port)
         entry = hass.config_entries.async_entries(DOMAIN)[0]
+        # Allgemein: Puffer/Boiler an
         result = await hass.config_entries.options.async_init(entry.entry_id)
+        assert result["type"] is FlowResultType.MENU
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "general"})
         result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {"boiler_type": "nano", "hk2_min": 50, "hk2_max": 40, "extras": True, "word_swap": True}
+            result["flow_id"],
+            {"boiler_type": "nano", "extras": True, "word_swap": True, "heat_limit": 18, "room_gain": 3, "room_boost_max": 10, "room_lower_max": 5},
         )
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done(wait_background_tasks=True)
+        # Heizkreis 2: Grenzen
+        hk2 = {"min": 50, "max": 40, "rooms": [], "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28}
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
+        result = await hass.config_entries.options.async_configure(result["flow_id"], hk2)
         assert result["errors"] == {"base": "min_max"}
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {"boiler_type": "nano", "hk2_min": 25, "hk2_max": 50, "extras": True, "word_swap": True}
-        )
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {**hk2, "min": 25, "max": 50})
         assert result["type"] is FlowResultType.CREATE_ENTRY
         await hass.async_block_till_done(wait_background_tasks=True)
         assert hass.states.get("sensor.hargassner_buffer_top").state == "65.0"
@@ -203,3 +212,57 @@ async def test_hk1_write_independent(hass: HomeAssistant, boiler):
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=125))
     await hass.async_block_till_done(wait_background_tasks=True)
     assert sorted(boiler.writes[k:]) == [(6998, [38]), (6999, [33])]
+
+
+
+async def test_flow_calculation_and_auto(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    # zwei Räume an HK2, einer zu kalt
+    hass.states.async_set("climate.eg_bad", "heat", {"current_temperature": 21.0, "temperature": 22.0, "friendly_name": "EG Bad"})
+    hass.states.async_set("climate.eg_wohnen", "heat", {"current_temperature": 21.5, "temperature": 21.0, "friendly_name": "EG Wohnen"})
+    hass.states.async_set("climate.eg_gast", "off", {"current_temperature": 15.0, "temperature": 21.0})
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"min": 20, "max": 60, "rooms": ["climate.eg_bad", "climate.eg_wohnen", "climate.eg_gast"],
+         "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    # gemittelt 6 °C -> Kurve 35,9 °C; Bad 1 K zu kalt -> +3 K -> 39 °C; Gast ist aus und zählt nicht
+    st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
+    assert st.state == "39"
+    assert st.attributes["kurve"] == 35.9
+    assert st.attributes["raum"] == "EG Bad"
+    assert st.attributes["raeume"] == 2
+    # HK1 ohne Räume: nur Kurve
+    assert hass.states.get("sensor.hargassner_flow_hc1_calculated").state == "36"
+
+    # Automatik an, Vorgeben noch aus -> nichts schreiben
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
+    assert boiler.writes == []
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
+    assert boiler.writes[-1] == (6999, [39])
+    # alle Räume warm -> Absenkung, höchstens 5 K
+    hass.states.async_set("climate.eg_bad", "heat", {"current_temperature": 24.0, "temperature": 22.0, "friendly_name": "EG Bad"})
+    hass.states.async_set("climate.eg_wohnen", "heat", {"current_temperature": 23.0, "temperature": 21.0, "friendly_name": "EG Wohnen"})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert boiler.writes[-1] == (6999, [31])
+    # Automatik aus -> wieder die manuelle Vorgabe
+    await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 44}, blocking=True)
+    await hass.services.async_call("switch", "turn_off", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
+    assert boiler.writes[-1] == (6999, [44])
+    # Raum nachträglich entfernen
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"min": 20, "max": 60, "rooms": ["climate.eg_wohnen"], "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+    st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
+    assert st.attributes["raeume"] == 1
+    assert st.attributes["raum"] == "EG Wohnen"

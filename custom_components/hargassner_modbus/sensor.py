@@ -30,6 +30,7 @@ async def async_setup_entry(
         else:
             entities.append(HargassnerValueSensor(coordinator, reg))
     entities.append(HargassnerKeepaliveSensor(coordinator))
+    entities += [HargassnerFlowCalcSensor(coordinator, hk) for hk in ("hk1", "hk2")]
     async_add_entities(entities)
 
 
@@ -110,3 +111,28 @@ class HargassnerKeepaliveSensor(HargassnerEntity, SensorEntity):
     def native_value(self):
         v = (self.coordinator.data or {}).get("lebenszeichen")
         return None if v is None else round(v, 2)
+
+
+class HargassnerFlowCalcSensor(HargassnerEntity, SensorEntity):
+    """Berechneter Vorlauf: Heizkurve nach Außentemperatur plus Anhebung/Absenkung nach Raumbedarf."""
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:chart-bell-curve-cumulative"
+
+    def __init__(self, coordinator: HargassnerCoordinator, hk: str) -> None:
+        super().__init__(coordinator, f"{hk}_vorlauf_berechnet")
+        self._hk = hk
+
+    @property
+    def native_value(self):
+        calc = self.coordinator.compute(self._hk)
+        return calc["value"] if calc else None
+
+    @property
+    def extra_state_attributes(self):
+        calc = self.coordinator.compute(self._hk)
+        if not calc:
+            return None
+        return {k: v for k, v in calc.items() if k != "value"}

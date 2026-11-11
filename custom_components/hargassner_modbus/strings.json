@@ -26,24 +26,67 @@
     "step": {
       "init": {
         "title": "Settings",
+        "menu_options": {
+          "general": "General and room demand",
+          "hk1": "Heating circuit 1",
+          "hk2": "Heating circuit 2"
+        }
+      },
+      "general": {
+        "title": "General",
         "data": {
           "boiler_type": "Boiler type",
-          "hk1_min": "Flow HC1 minimum",
-          "hk1_max": "Flow HC1 maximum",
-          "hk2_min": "Flow HC2 minimum",
-          "hk2_max": "Flow HC2 maximum",
           "extras": "Read buffer and hot water",
-          "word_swap": "Swap word order (float)"
+          "word_swap": "Swap word order (float)",
+          "heat_limit": "Heating limit (outdoor)",
+          "room_gain": "Raise per K room too cold",
+          "room_boost_max": "Maximum raise",
+          "room_lower_max": "Maximum lowering"
         },
         "data_description": {
-          "hk1_max": "Only use when HC1 is set to “Loxone” on the boiler. Never written higher.",
           "word_swap": "Detected during setup. Only change if temperatures look wrong.",
-          "hk2_max": "Never written higher, even if an automation asks for more."
+          "heat_limit": "From this averaged outdoor temperature only the minimum flow is requested.",
+          "room_gain": "If the coldest room is 1 K below target, the flow rises by this value. If all rooms are above target, it drops accordingly."
+        }
+      },
+      "hk1": {
+        "title": "Heating circuit 1",
+        "data": {
+          "min": "Flow minimum",
+          "max": "Flow maximum",
+          "rooms": "Rooms (thermostats)",
+          "out_cold": "Curve: cold point, outdoor",
+          "flow_cold": "Curve: cold point, flow",
+          "out_warm": "Curve: warm point, outdoor",
+          "flow_warm": "Curve: warm point, flow"
+        },
+        "data_description": {
+          "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
+          "max": "Never written higher, not even by the automatic mode.",
+          "out_cold": "Linear between the two points, extended beyond them."
+        }
+      },
+      "hk2": {
+        "title": "Heating circuit 2",
+        "data": {
+          "min": "Flow minimum",
+          "max": "Flow maximum",
+          "rooms": "Rooms (thermostats)",
+          "out_cold": "Curve: cold point, outdoor",
+          "flow_cold": "Curve: cold point, flow",
+          "out_warm": "Curve: warm point, outdoor",
+          "flow_warm": "Curve: warm point, flow"
+        },
+        "data_description": {
+          "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
+          "max": "Never written higher, not even by the automatic mode.",
+          "out_cold": "Linear between the two points, extended beyond them."
         }
       }
     },
     "error": {
-      "min_max": "Minimum must be below maximum."
+      "min_max": "Minimum must be below maximum.",
+      "curve": "The cold point needs a lower outdoor temperature than the warm point."
     }
   },
   "selector": {
@@ -130,6 +173,12 @@
       },
       "lebenszeichen": {
         "name": "Keep-alive"
+      },
+      "hk1_vorlauf_berechnet": {
+        "name": "Flow HC1 calculated"
+      },
+      "hk2_vorlauf_berechnet": {
+        "name": "Flow HC2 calculated"
       }
     },
     "binary_sensor": {
@@ -149,6 +198,12 @@
       },
       "hk2_schreiben": {
         "name": "Control HC2"
+      },
+      "hk1_automatik": {
+        "name": "Automatic HC1"
+      },
+      "hk2_automatik": {
+        "name": "Automatic HC2"
       }
     },
     "number": {

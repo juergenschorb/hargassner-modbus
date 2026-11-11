@@ -15,8 +15,18 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     CONF_EXTRAS,
     CONF_WORD_SWAP,
+    CONF_HEAT_LIMIT,
+    CONF_ROOM_BOOST_MAX,
+    CONF_ROOM_GAIN,
+    CONF_ROOM_LOWER_MAX,
+    DEFAULT_CURVE,
+    DEFAULT_HEAT_LIMIT,
     DEFAULT_HK_MAX,
     DEFAULT_HK_MIN,
+    DEFAULT_ROOM_BOOST_MAX,
+    DEFAULT_ROOM_GAIN,
+    DEFAULT_ROOM_LOWER_MAX,
+    ROOM_DEADBAND,
     DOMAIN,
     HK_SETPOINT_REGS,
     KEEPALIVE_INTERVAL,
@@ -48,6 +58,8 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.write_enabled: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
         self.setpoint: dict[str, float | None] = {hk: None for hk in HK_SETPOINT_REGS}
         self.last_write: dict[str, dict[str, Any]] = {hk: {} for hk in HK_SETPOINT_REGS}
+        # Automatik: statt der manuellen Vorgabe den berechneten Vorlauf senden
+        self.auto: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
         self._unsub_write = None
 
     @property
@@ -57,6 +69,64 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def limits(self, hk: str) -> tuple[int, int]:
         o = self.options
         return int(o.get(f"{hk}_min", DEFAULT_HK_MIN)), int(o.get(f"{hk}_max", DEFAULT_HK_MAX))
+
+    def compute(self, hk: str) -> dict[str, Any] | None:
+        """Vorlauf aus Heizkurve (Außentemperatur vom Kessel) plus Raumbedarf."""
+        o = self.options
+        data = self.data or {}
+        t_out = data.get("aussen_gemittelt")
+        if t_out is None:
+            t_out = data.get("aussen")
+        if t_out is None:
+            return None
+        c = {k: float(o.get(f"{hk}_{k}", v)) for k, v in DEFAULT_CURVE.items()}
+        span = c["out_warm"] - c["out_cold"]
+        if span == 0:
+            return None
+        curve = c["flow_cold"] + (t_out - c["out_cold"]) * (c["flow_warm"] - c["flow_cold"]) / span
+
+        rooms = []
+        for eid in o.get(f"{hk}_rooms", []) or []:
+            st = self.hass.states.get(eid)
+            if st is None or st.state in ("off", "unavailable", "unknown"):
+                continue
+            try:
+                cur = float(st.attributes["current_temperature"])
+                tgt = float(st.attributes["temperature"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            rooms.append((round(tgt - cur, 2), st.name, cur, tgt))
+
+        gain = float(o.get(CONF_ROOM_GAIN, DEFAULT_ROOM_GAIN))
+        corr = 0.0
+        room = None
+        reason = "Heizkurve"
+        if rooms:
+            diff, room, cur, tgt = max(rooms)
+            if diff > ROOM_DEADBAND:
+                corr = min(gain * diff, float(o.get(CONF_ROOM_BOOST_MAX, DEFAULT_ROOM_BOOST_MAX)))
+                reason = f"{room} {diff:.1f} K zu kalt".replace(".", ",")
+            elif diff < -ROOM_DEADBAND:
+                corr = max(gain * diff, -float(o.get(CONF_ROOM_LOWER_MAX, DEFAULT_ROOM_LOWER_MAX)))
+                reason = f"Alle Räume warm (am kältesten {room}, {-diff:.1f} K über Soll)".replace(".", ",")
+            else:
+                reason = f"Räume auf Soll (am kältesten {room})"
+
+        lo, hi = self.limits(hk)
+        if t_out >= float(o.get(CONF_HEAT_LIMIT, DEFAULT_HEAT_LIMIT)):
+            value = lo
+            reason = "Heizgrenze erreicht"
+        else:
+            value = int(round(max(lo, min(hi, curve + corr))))
+        return {
+            "value": value,
+            "aussen": round(t_out, 1),
+            "kurve": round(curve, 1),
+            "korrektur": round(corr, 1),
+            "raum": room,
+            "grund": reason,
+            "raeume": len(rooms),
+        }
 
     async def _async_update_data(self) -> dict[str, Any]:
         swap = bool(self.options.get(CONF_WORD_SWAP, True))
@@ -104,7 +174,11 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_write_hk(self, hk: str) -> None:
         """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""
-        setpoint = self.setpoint[hk]
+        if self.auto[hk]:
+            calc = self.compute(hk)
+            setpoint = calc["value"] if calc else None
+        else:
+            setpoint = self.setpoint[hk]
         if not self.write_enabled[hk] or setpoint is None:
             return
         lo, hi = self.limits(hk)
