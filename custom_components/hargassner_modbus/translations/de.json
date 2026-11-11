@@ -1,0 +1,154 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hargassner Kessel",
+        "description": "Modbus-TCP-Schnittstelle der Hargassner-Loxone-Erweiterung. Beim Einrichten wird nur gelesen; die Vorgabe für HK2 bleibt aus, bis du sie einschaltest.",
+        "data": {
+          "host": "IP-Adresse",
+          "port": "Port",
+          "unit": "Geräteadresse",
+          "boiler_type": "Kesseltyp"
+        },
+        "data_description": {
+          "host": "IP des Kessels oder des modbus-proxy"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Keine Antwort vom Kessel. IP, Port und Geräteadresse prüfen; nimmt der Kessel nur eine Verbindung an, den modbus-proxy davorschalten."
+    },
+    "abort": {
+      "already_configured": "Dieser Kessel ist schon eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "boiler_type": "Kesseltyp",
+          "hk2_min": "Vorlauf HK2 mindestens",
+          "hk2_max": "Vorlauf HK2 höchstens",
+          "extras": "Puffer und Boiler abfragen",
+          "word_swap": "Wortreihenfolge tauschen (Float)"
+        },
+        "data_description": {
+          "word_swap": "Wird beim Einrichten automatisch erkannt. Nur ändern, wenn die Temperaturen Unsinn zeigen.",
+          "hk2_max": "Höher wird nie geschrieben, auch wenn eine Automation mehr vorgibt."
+        }
+      }
+    },
+    "error": {
+      "min_max": "Mindestwert muss unter dem Höchstwert liegen."
+    }
+  },
+  "selector": {
+    "boiler_type": {
+      "options": {
+        "nano": "Nano-PK / HSV / CL",
+        "eco": "Eco-PK / Eco-HK / WTH-Touch"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "aussen": {
+        "name": "Außentemperatur"
+      },
+      "aussen_gemittelt": {
+        "name": "Außentemperatur gemittelt"
+      },
+      "kessel_ist": {
+        "name": "Kesseltemperatur Ist"
+      },
+      "kessel_soll": {
+        "name": "Kesseltemperatur Soll"
+      },
+      "kesselzustand": {
+        "name": "Kesselzustand"
+      },
+      "kesselzustand_code": {
+        "name": "Kesselzustand Code"
+      },
+      "leistung": {
+        "name": "Leistung"
+      },
+      "rauchgas": {
+        "name": "Rauchgastemperatur"
+      },
+      "ruecklauf": {
+        "name": "Rücklauftemperatur"
+      },
+      "hk1_vorlauf_ist": {
+        "name": "Vorlauf HK1 Ist"
+      },
+      "hk1_vorlauf_soll": {
+        "name": "Vorlauf HK1 Soll"
+      },
+      "hk1_zustand": {
+        "name": "Zustand HK1"
+      },
+      "hk1_zustand_code": {
+        "name": "Zustand HK1 Code"
+      },
+      "hk2_vorlauf_ist": {
+        "name": "Vorlauf HK2 Ist"
+      },
+      "hk2_vorlauf_soll": {
+        "name": "Vorlauf HK2 Soll"
+      },
+      "hk2_zustand": {
+        "name": "Zustand HK2"
+      },
+      "hk2_zustand_code": {
+        "name": "Zustand HK2 Code"
+      },
+      "lagerstand": {
+        "name": "Lagerstand"
+      },
+      "stoerung": {
+        "name": "Störungsnummer"
+      },
+      "puffer_oben": {
+        "name": "Puffer oben"
+      },
+      "puffer_mitte": {
+        "name": "Puffer Mitte"
+      },
+      "puffer_unten": {
+        "name": "Puffer unten"
+      },
+      "boiler_temp": {
+        "name": "Boilertemperatur"
+      },
+      "boiler_zustand": {
+        "name": "Boiler Zustand Code"
+      },
+      "lebenszeichen": {
+        "name": "Lebenszeichen"
+      }
+    },
+    "binary_sensor": {
+      "stoerung_aktiv": {
+        "name": "Störung"
+      },
+      "hk1_restwaerme": {
+        "name": "Restwärme HK1"
+      },
+      "hk2_restwaerme": {
+        "name": "Restwärme HK2"
+      }
+    },
+    "switch": {
+      "hk2_schreiben": {
+        "name": "HK2 vorgeben"
+      }
+    },
+    "number": {
+      "hk2_vorlauf_vorgabe": {
+        "name": "Vorlauf HK2 Vorgabe"
+      }
+    }
+  }
+}

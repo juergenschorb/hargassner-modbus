@@ -1,0 +1,154 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hargassner boiler",
+        "description": "Modbus TCP interface of the Hargassner Loxone extension. Setup only reads; writing HC2 stays off until you enable it.",
+        "data": {
+          "host": "IP address",
+          "port": "Port",
+          "unit": "Device address",
+          "boiler_type": "Boiler type"
+        },
+        "data_description": {
+          "host": "IP of the boiler or modbus proxy"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No answer from the boiler. Check IP, port and device address; if the boiler accepts only one connection, use a modbus proxy."
+    },
+    "abort": {
+      "already_configured": "This boiler is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "data": {
+          "boiler_type": "Boiler type",
+          "hk2_min": "Flow HC2 minimum",
+          "hk2_max": "Flow HC2 maximum",
+          "extras": "Read buffer and hot water",
+          "word_swap": "Swap word order (float)"
+        },
+        "data_description": {
+          "word_swap": "Detected during setup. Only change if temperatures look wrong.",
+          "hk2_max": "Never written higher, even if an automation asks for more."
+        }
+      }
+    },
+    "error": {
+      "min_max": "Minimum must be below maximum."
+    }
+  },
+  "selector": {
+    "boiler_type": {
+      "options": {
+        "nano": "Nano-PK / HSV / CL",
+        "eco": "Eco-PK / Eco-HK / WTH-Touch"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "aussen": {
+        "name": "Outdoor temperature"
+      },
+      "aussen_gemittelt": {
+        "name": "Outdoor temperature averaged"
+      },
+      "kessel_ist": {
+        "name": "Boiler temperature"
+      },
+      "kessel_soll": {
+        "name": "Boiler temperature target"
+      },
+      "kesselzustand": {
+        "name": "Boiler state"
+      },
+      "kesselzustand_code": {
+        "name": "Boiler state code"
+      },
+      "leistung": {
+        "name": "Output"
+      },
+      "rauchgas": {
+        "name": "Flue gas temperature"
+      },
+      "ruecklauf": {
+        "name": "Return temperature"
+      },
+      "hk1_vorlauf_ist": {
+        "name": "Flow HC1"
+      },
+      "hk1_vorlauf_soll": {
+        "name": "Flow HC1 target"
+      },
+      "hk1_zustand": {
+        "name": "State HC1"
+      },
+      "hk1_zustand_code": {
+        "name": "State HC1 code"
+      },
+      "hk2_vorlauf_ist": {
+        "name": "Flow HC2"
+      },
+      "hk2_vorlauf_soll": {
+        "name": "Flow HC2 target"
+      },
+      "hk2_zustand": {
+        "name": "State HC2"
+      },
+      "hk2_zustand_code": {
+        "name": "State HC2 code"
+      },
+      "lagerstand": {
+        "name": "Pellet stock"
+      },
+      "stoerung": {
+        "name": "Fault number"
+      },
+      "puffer_oben": {
+        "name": "Buffer top"
+      },
+      "puffer_mitte": {
+        "name": "Buffer middle"
+      },
+      "puffer_unten": {
+        "name": "Buffer bottom"
+      },
+      "boiler_temp": {
+        "name": "Hot water temperature"
+      },
+      "boiler_zustand": {
+        "name": "Hot water state code"
+      },
+      "lebenszeichen": {
+        "name": "Keep-alive"
+      }
+    },
+    "binary_sensor": {
+      "stoerung_aktiv": {
+        "name": "Fault"
+      },
+      "hk1_restwaerme": {
+        "name": "Residual heat HC1"
+      },
+      "hk2_restwaerme": {
+        "name": "Residual heat HC2"
+      }
+    },
+    "switch": {
+      "hk2_schreiben": {
+        "name": "Control HC2"
+      }
+    },
+    "number": {
+      "hk2_vorlauf_vorgabe": {
+        "name": "Flow HC2 setpoint"
+      }
+    }
+  }
+}
