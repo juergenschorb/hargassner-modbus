@@ -14,15 +14,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_EXTRAS,
-    CONF_HK2_MAX,
-    CONF_HK2_MIN,
     CONF_WORD_SWAP,
-    DEFAULT_HK2_MAX,
-    DEFAULT_HK2_MIN,
+    DEFAULT_HK_MAX,
+    DEFAULT_HK_MIN,
     DOMAIN,
+    HK_SETPOINT_REGS,
     KEEPALIVE_INTERVAL,
     READ_REGISTERS,
-    REG_HK2_SETPOINT,
     REG_KEEPALIVE,
     VALUES_EVERY,
     WRITE_INTERVAL,
@@ -33,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Liest alle 10 s das Lebenszeichen, alle 30 s die Messwerte und schreibt HK2."""
+    """Liest alle 10 s das Lebenszeichen, alle 30 s die Messwerte und schreibt HK1/HK2."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, client: ModbusClient) -> None:
         super().__init__(
@@ -46,20 +44,19 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client = client
         self._cycle = 0
         self._values: dict[str, Any] = {}
-        # HK2-Vorgabe: wird von Schalter und Zahl-Entität gesetzt (beide stellen ihren Zustand wieder her)
-        self.hk2_write_enabled = False
-        self.hk2_setpoint: float | None = None
-        self.last_write: dict[str, Any] = {}
+        # Vorgabe je Heizkreis: von Schalter und Zahl-Entität gesetzt (beide stellen ihren Zustand wieder her)
+        self.write_enabled: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
+        self.setpoint: dict[str, float | None] = {hk: None for hk in HK_SETPOINT_REGS}
+        self.last_write: dict[str, dict[str, Any]] = {hk: {} for hk in HK_SETPOINT_REGS}
         self._unsub_write = None
 
     @property
     def options(self) -> dict[str, Any]:
         return {**self.config_entry.data, **self.config_entry.options}
 
-    @property
-    def hk2_limits(self) -> tuple[int, int]:
+    def limits(self, hk: str) -> tuple[int, int]:
         o = self.options
-        return int(o.get(CONF_HK2_MIN, DEFAULT_HK2_MIN)), int(o.get(CONF_HK2_MAX, DEFAULT_HK2_MAX))
+        return int(o.get(f"{hk}_min", DEFAULT_HK_MIN)), int(o.get(f"{hk}_max", DEFAULT_HK_MAX))
 
     async def _async_update_data(self) -> dict[str, Any]:
         swap = bool(self.options.get(CONF_WORD_SWAP, True))
@@ -88,7 +85,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cycle += 1
         return {**self._values, "lebenszeichen": keepalive}
 
-    # ---------- HK2 schreiben ----------
+    # ---------- HK1/HK2 schreiben ----------
     @callback
     def start_writer(self) -> None:
         self._unsub_write = async_track_time_interval(
@@ -102,19 +99,21 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_write = None
 
     async def _write_tick(self, _now=None) -> None:
-        await self.async_write_hk2()
+        for hk in HK_SETPOINT_REGS:
+            await self.async_write_hk(hk)
 
-    async def async_write_hk2(self) -> None:
-        """Vorlauf-Soll HK2 senden, aber nur wenn freigegeben."""
-        if not self.hk2_write_enabled or self.hk2_setpoint is None:
+    async def async_write_hk(self, hk: str) -> None:
+        """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""
+        setpoint = self.setpoint[hk]
+        if not self.write_enabled[hk] or setpoint is None:
             return
-        lo, hi = self.hk2_limits
-        value = int(round(max(lo, min(hi, self.hk2_setpoint))))
+        lo, hi = self.limits(hk)
+        value = int(round(max(lo, min(hi, setpoint))))
         try:
-            await self.client.write_registers(REG_HK2_SETPOINT, [value])
+            await self.client.write_registers(HK_SETPOINT_REGS[hk], [value])
         except ModbusError as err:
-            _LOGGER.warning("Vorlauf-Soll HK2 (%s °C) nicht geschrieben: %s", value, err)
-            self.last_write = {"ok": False, "value": value, "error": str(err)}
+            _LOGGER.warning("Vorlauf-Soll %s (%s °C) nicht geschrieben: %s", hk.upper(), value, err)
+            self.last_write[hk] = {"ok": False, "value": value, "error": str(err)}
         else:
-            self.last_write = {"ok": True, "value": value}
+            self.last_write[hk] = {"ok": True, "value": value}
         self.async_update_listeners()

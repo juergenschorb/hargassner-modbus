@@ -28,12 +28,15 @@
         "title": "Einstellungen",
         "data": {
           "boiler_type": "Kesseltyp",
+          "hk1_min": "Vorlauf HK1 mindestens",
+          "hk1_max": "Vorlauf HK1 höchstens",
           "hk2_min": "Vorlauf HK2 mindestens",
           "hk2_max": "Vorlauf HK2 höchstens",
           "extras": "Puffer und Boiler abfragen",
           "word_swap": "Wortreihenfolge tauschen (Float)"
         },
         "data_description": {
+          "hk1_max": "Nur nutzen, wenn HK1 am Kessel auf „Loxone“ steht. Höher wird nie geschrieben.",
           "word_swap": "Wird beim Einrichten automatisch erkannt. Nur ändern, wenn die Temperaturen Unsinn zeigen.",
           "hk2_max": "Höher wird nie geschrieben, auch wenn eine Automation mehr vorgibt."
         }
@@ -141,11 +144,17 @@
       }
     },
     "switch": {
+      "hk1_schreiben": {
+        "name": "HK1 vorgeben"
+      },
       "hk2_schreiben": {
         "name": "HK2 vorgeben"
       }
     },
     "number": {
+      "hk1_vorlauf_vorgabe": {
+        "name": "Vorlauf HK1 Vorgabe"
+      },
       "hk2_vorlauf_vorgabe": {
         "name": "Vorlauf HK2 Vorgabe"
       }

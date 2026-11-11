@@ -17,12 +17,14 @@ from .const import (
     BOILER_NANO,
     CONF_BOILER_TYPE,
     CONF_EXTRAS,
+    CONF_HK1_MAX,
+    CONF_HK1_MIN,
     CONF_HK2_MAX,
     CONF_HK2_MIN,
     CONF_UNIT,
     CONF_WORD_SWAP,
-    DEFAULT_HK2_MAX,
-    DEFAULT_HK2_MIN,
+    DEFAULT_HK_MAX,
+    DEFAULT_HK_MIN,
     DEFAULT_PORT,
     DEFAULT_UNIT,
     DOMAIN,
@@ -83,8 +85,10 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
                     options={
                         CONF_WORD_SWAP: swap,
                         CONF_BOILER_TYPE: user_input[CONF_BOILER_TYPE],
-                        CONF_HK2_MIN: DEFAULT_HK2_MIN,
-                        CONF_HK2_MAX: DEFAULT_HK2_MAX,
+                        CONF_HK1_MIN: DEFAULT_HK_MIN,
+                        CONF_HK1_MAX: DEFAULT_HK_MAX,
+                        CONF_HK2_MIN: DEFAULT_HK_MIN,
+                        CONF_HK2_MAX: DEFAULT_HK_MAX,
                         CONF_EXTRAS: False,
                     },
                 )
@@ -118,11 +122,13 @@ class HargassnerOptionsFlow(OptionsFlow):
             data = {
                 CONF_WORD_SWAP: bool(user_input[CONF_WORD_SWAP]),
                 CONF_BOILER_TYPE: user_input[CONF_BOILER_TYPE],
+                CONF_HK1_MIN: int(user_input.get(CONF_HK1_MIN, o.get(CONF_HK1_MIN, DEFAULT_HK_MIN))),
+                CONF_HK1_MAX: int(user_input.get(CONF_HK1_MAX, o.get(CONF_HK1_MAX, DEFAULT_HK_MAX))),
                 CONF_HK2_MIN: int(user_input[CONF_HK2_MIN]),
                 CONF_HK2_MAX: int(user_input[CONF_HK2_MAX]),
                 CONF_EXTRAS: bool(user_input[CONF_EXTRAS]),
             }
-            if data[CONF_HK2_MIN] >= data[CONF_HK2_MAX]:
+            if data[CONF_HK1_MIN] >= data[CONF_HK1_MAX] or data[CONF_HK2_MIN] >= data[CONF_HK2_MAX]:
                 errors["base"] = "min_max"
             else:
                 return self.async_create_entry(data=data)
@@ -134,8 +140,10 @@ class HargassnerOptionsFlow(OptionsFlow):
                 vol.Required(CONF_BOILER_TYPE, default=o.get(CONF_BOILER_TYPE, BOILER_NANO)): selector.SelectSelector(
                     selector.SelectSelectorConfig(options=[BOILER_NANO, BOILER_ECO], translation_key="boiler_type")
                 ),
-                vol.Required(CONF_HK2_MIN, default=o.get(CONF_HK2_MIN, DEFAULT_HK2_MIN)): temp,
-                vol.Required(CONF_HK2_MAX, default=o.get(CONF_HK2_MAX, DEFAULT_HK2_MAX)): temp,
+                vol.Required(CONF_HK1_MIN, default=o.get(CONF_HK1_MIN, DEFAULT_HK_MIN)): temp,
+                vol.Required(CONF_HK1_MAX, default=o.get(CONF_HK1_MAX, DEFAULT_HK_MAX)): temp,
+                vol.Required(CONF_HK2_MIN, default=o.get(CONF_HK2_MIN, DEFAULT_HK_MIN)): temp,
+                vol.Required(CONF_HK2_MAX, default=o.get(CONF_HK2_MAX, DEFAULT_HK_MAX)): temp,
                 vol.Required(CONF_EXTRAS, default=o.get(CONF_EXTRAS, False)): bool,
                 vol.Required(CONF_WORD_SWAP, default=o.get(CONF_WORD_SWAP, True)): bool,
             }

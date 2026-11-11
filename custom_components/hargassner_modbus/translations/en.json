@@ -28,12 +28,15 @@
         "title": "Settings",
         "data": {
           "boiler_type": "Boiler type",
+          "hk1_min": "Flow HC1 minimum",
+          "hk1_max": "Flow HC1 maximum",
           "hk2_min": "Flow HC2 minimum",
           "hk2_max": "Flow HC2 maximum",
           "extras": "Read buffer and hot water",
           "word_swap": "Swap word order (float)"
         },
         "data_description": {
+          "hk1_max": "Only use when HC1 is set to “Loxone” on the boiler. Never written higher.",
           "word_swap": "Detected during setup. Only change if temperatures look wrong.",
           "hk2_max": "Never written higher, even if an automation asks for more."
         }
@@ -141,11 +144,17 @@
       }
     },
     "switch": {
+      "hk1_schreiben": {
+        "name": "Control HC1"
+      },
       "hk2_schreiben": {
         "name": "Control HC2"
       }
     },
     "number": {
+      "hk1_vorlauf_vorgabe": {
+        "name": "Flow HC1 setpoint"
+      },
       "hk2_vorlauf_vorgabe": {
         "name": "Flow HC2 setpoint"
       }

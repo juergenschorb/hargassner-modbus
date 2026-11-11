@@ -149,6 +149,8 @@ async def test_german_names(hass: HomeAssistant, boiler):
     assert "sensor.hargassner_zustand_hk2" in ids
     assert "switch.hargassner_hk2_vorgeben" in ids
     assert "number.hargassner_vorlauf_hk2_vorgabe" in ids
+    assert "switch.hargassner_hk1_vorgeben" in ids
+    assert "number.hargassner_vorlauf_hk1_vorgabe" in ids
     assert "binary_sensor.hargassner_storung" in ids
     print("\nIDS", ids)
 
@@ -178,3 +180,26 @@ async def test_options_extras_and_limits(hass: HomeAssistant):
         assert b.writes[-1] == (6999, [48])
     finally:
         await b.stop()
+
+
+async def test_hk1_write_independent(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    # beide Schalter sind nach der Einrichtung aus
+    assert hass.states.get("switch.hargassner_control_hc1").state == "off"
+    assert hass.states.get("switch.hargassner_control_hc2").state == "off"
+    await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc1_setpoint", "value": 38}, blocking=True)
+    await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 33}, blocking=True)
+    assert boiler.writes == []
+    # nur HK1 frei -> nur 6998
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes == [(6998, [38])]
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert {w[0] for w in boiler.writes} == {6998}
+    # HK2 dazu -> beide im Takt
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
+    assert boiler.writes[-1] == (6999, [33])
+    k = len(boiler.writes)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=125))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert sorted(boiler.writes[k:]) == [(6998, [38]), (6999, [33])]

@@ -9,21 +9,27 @@ DOMAIN = "hargassner_modbus"
 CONF_UNIT = "unit"
 CONF_WORD_SWAP = "word_swap"
 CONF_BOILER_TYPE = "boiler_type"
+CONF_HK1_MIN = "hk1_min"
+CONF_HK1_MAX = "hk1_max"
 CONF_HK2_MIN = "hk2_min"
 CONF_HK2_MAX = "hk2_max"
 CONF_EXTRAS = "extras"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT = 1
-DEFAULT_HK2_MIN = 20
-DEFAULT_HK2_MAX = 60
+DEFAULT_HK_MIN = 20
+DEFAULT_HK_MAX = 60
+DEFAULT_HK2_MIN = DEFAULT_HK_MIN
+DEFAULT_HK2_MAX = DEFAULT_HK_MAX
 
 # Lebenszeichen: muss alle 10 s gelesen werden (sonst Störung nach Kesselparameter Z1b)
 REG_KEEPALIVE = 6499
 KEEPALIVE_INTERVAL = 10  # s
 VALUES_EVERY = 3  # Messwerte bei jedem 3. Lebenszeichen lesen, also alle 30 s
-# Solltemperatur HK2 (EG): uint16, FC16, zyklisch alle 60 s wie Loxone
-REG_HK2_SETPOINT = 6999
+# Solltemperatur HK1/HK2: uint16, FC16, zyklisch alle 60 s wie Loxone.
+# Nur sinnvoll, wenn der Heizkreis am Kessel auf „Loxone“ steht (dann entfällt dessen Heizkurve).
+HK_SETPOINT_REGS = {"hk1": 6998, "hk2": 6999}
+REG_HK2_SETPOINT = HK_SETPOINT_REGS["hk2"]
 WRITE_INTERVAL = 60  # s
 
 BOILER_NANO = "nano"  # HSV / CL / Nano-PK

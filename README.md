@@ -14,6 +14,9 @@ Registerbelegung laut Hargassner-Anleitung „Zubehör Loxone“ V01.
 - „Restwärme HK1/HK2“ als Ja/Nein, z. B. um Heizkörperventile offen zu halten
 - Optional Puffer oben/Mitte/unten und Boiler
 - **HK2 vorgeben**: Schalter und Sollwert. Nur wenn der Schalter an ist, schreibt Home Assistant die Vorlauftemperatur HK2 (Register 6999) alle 60 s und bei jeder Änderung. Nach der Einrichtung ist er **aus**.
+- **HK1 vorgeben**: genauso für HK1 (Register 6998), eigener Schalter, ebenfalls **aus**. Beide Heizkreise sind unabhängig voneinander.
+
+> **HK1/HK2 vorgeben** wirkt nur, wenn der Heizkreis am Kessel auf „Loxone“ (externe Vorgabe) steht. Dann gilt die Heizkurve des Kessels für diesen Heizkreis nicht mehr: Home Assistant muss die Vorlauftemperatur selbst passend zur Außentemperatur vorgeben. Was der Kessel macht, wenn Home Assistant ausfällt (Lebenszeichen bleibt aus), bitte im Kesselmenü bzw. in der Hargassner-Anleitung zur Loxone-Schnittstelle prüfen.
 - Fällt die Verbindung weg, werden die Werte „nicht verfügbar“ und die Integration verbindet sich selbst neu
 - Eigener schlanker Modbus-Client, keine Abhängigkeit von pymodbus
 
@@ -43,7 +46,7 @@ Ordner `custom_components/hargassner_modbus` nach `/config/custom_components/` k
 
 Beim Einrichten liest die Integration Lebenszeichen, Außen- und Kesseltemperatur und erkennt daraus die Wortreihenfolge der Kommazahlen selbst.
 
-Unter **Konfigurieren** lassen sich ändern: Kesseltyp, Mindest- und Höchstwert für den Vorlauf HK2 (Standard 20–60 °C, darüber wird nie geschrieben), Puffer und Boiler abfragen, Wortreihenfolge.
+Unter **Konfigurieren** lassen sich ändern: Kesseltyp, Mindest- und Höchstwert für den Vorlauf HK1 und HK2 (je Standard 20–60 °C, darüber wird nie geschrieben), Puffer und Boiler abfragen, Wortreihenfolge.
 
 ## Umstellen von Loxone
 
@@ -52,6 +55,7 @@ Unter **Konfigurieren** lassen sich ändern: Kesseltyp, Mindest- und Höchstwert
 3. **Umschalten:** In der Loxone Config den Aktor „Solltemperatur HK2“ (6999) und den Abruf von 6499 deaktivieren und in den Miniserver speichern. Dann **„Vorlauf HK2 Vorgabe“** setzen und **„HK2 vorgeben“** einschalten, innerhalb von 60 s.
 4. **Beobachten:** Die HK2-Solltemperatur am Kessel folgt der Vorgabe, es kommt keine Lebenszeichen-Störung.
 5. **Zurück:** „HK2 vorgeben“ aus, Loxone-Objekte wieder aktivieren.
+6. **HK1 (optional):** Später genauso mit „Solltemperatur HK1“ (6998) und **„HK1 vorgeben“**. Vorher am Kessel prüfen, dass HK1 auf „Loxone“ steht.
 
 **Nie Loxone und Home Assistant gleichzeitig schreiben lassen.**
 
@@ -82,4 +86,4 @@ pytest
 
 ## Stand
 
-Version 0.1.0.
+Version 0.2.0.
