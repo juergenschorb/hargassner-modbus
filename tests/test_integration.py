@@ -157,7 +157,7 @@ async def test_german_names(hass: HomeAssistant, boiler):
 
 
 async def test_options_extras_and_limits(hass: HomeAssistant):
-    values = {**BOILER_VALUES, 122: 65.0, 124: 40.0, 254: 55.0, 10: 52.0, 190: 1.0}
+    values = {**BOILER_VALUES, 122: 65.0, 124: 40.0, 254: 120.0, 10: 52.0, 190: 1.0}
     b = FakeBoiler(values)
     port = await b.start()
     try:
@@ -183,6 +183,8 @@ async def test_options_extras_and_limits(hass: HomeAssistant):
         assert result["type"] is FlowResultType.CREATE_ENTRY
         await hass.async_block_till_done(wait_background_tasks=True)
         assert hass.states.get("sensor.hargassner_buffer_top").state == "65.0"
+        # kein mittlerer Fühler (Kessel meldet 120) -> keine Entität
+        assert not [s for s in hass.states.async_all("sensor") if "middle" in s.entity_id]
         st = hass.states.get("number.hargassner_flow_hc2_setpoint")
         assert st.attributes["max"] == 50
         await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 48}, blocking=True)

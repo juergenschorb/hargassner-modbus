@@ -65,16 +65,24 @@ class Reg:
     kind: str = "temp"  # temp | percent | code | number
     extra: bool = False  # nur mit Option „Puffer/Boiler“ abfragen
     precision: int = 1
+    # Fehlt ein Fühler, meldet der Kessel einen festen Wert (z. B. 120 °C) – ab hier „nicht vorhanden“
+    max_valid: float | None = None
+
+    @property
+    def limit(self) -> float | None:
+        if self.max_valid is not None:
+            return self.max_valid
+        return 110.0 if self.kind == "temp" else None
 
 
 READ_REGISTERS: tuple[Reg, ...] = (
-    Reg("aussen", 8),
-    Reg("aussen_gemittelt", 6),
+    Reg("aussen", 8, max_valid=70),
+    Reg("aussen_gemittelt", 6, max_valid=70),
     Reg("kessel_ist", 82),
     Reg("kessel_soll", 84),
     Reg("kesselzustand", 86, "code"),
     Reg("leistung", 88, "percent", precision=0),
-    Reg("rauchgas", 126, precision=0),
+    Reg("rauchgas", 126, precision=0, max_valid=400),
     Reg("ruecklauf", 130),
     Reg("hk1_vorlauf_ist", 144),
     Reg("hk1_vorlauf_soll", 146),

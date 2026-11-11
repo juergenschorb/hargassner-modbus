@@ -24,6 +24,8 @@ async def async_setup_entry(
     for reg in READ_REGISTERS:
         if reg.extra and not extras:
             continue
+        if reg.extra and (coordinator.data or {}).get(reg.key) is None:
+            continue  # z. B. kein mittlerer Pufferfühler: Entität gar nicht anlegen
         if reg.kind == "code" and reg.key in ("kesselzustand", "hk1_zustand", "hk2_zustand"):
             entities.append(HargassnerStateSensor(coordinator, reg))
             entities.append(HargassnerValueSensor(coordinator, reg, code=True))

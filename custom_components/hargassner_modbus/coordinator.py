@@ -153,6 +153,8 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     v = None
                 if v is not None and not math.isfinite(v):
                     v = None
+                if v is not None and reg.limit is not None and v >= reg.limit:
+                    v = None  # Fühler nicht angeschlossen
                 values[reg.key] = v
             self._values = values
         self._cycle += 1
