@@ -83,6 +83,7 @@ async def test_flow_cannot_connect(hass: HomeAssistant):
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+    assert "127.0.0.1:1" in result["description_placeholders"]["details"]
 
 
 async def test_keepalive_and_hk2_write(hass: HomeAssistant, boiler):
@@ -266,3 +267,45 @@ async def test_flow_calculation_and_auto(hass: HomeAssistant, boiler):
     st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
     assert st.attributes["raeume"] == 1
     assert st.attributes["raum"] == "EG Wohnen"
+
+
+async def test_flow_wrong_unit_reports_no_response(hass: HomeAssistant):
+    # Server nimmt Verbindung an, antwortet aber nie (wie Proxy ohne Kessel / falsche Geräteadresse)
+    import asyncio
+
+    async def silent(reader, writer):
+        try:
+            await reader.read()
+        finally:
+            writer.close()
+
+    server = await asyncio.start_server(silent, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    try:
+        from custom_components.hargassner_modbus import config_flow
+
+        orig = config_flow.ModbusClient
+        config_flow.ModbusClient = lambda h, p, u, timeout=8: orig(h, p, u, timeout=0.3)
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"host": "127.0.0.1", "port": port, "unit": 1, "boiler_type": "nano"}
+        )
+        assert result["errors"] == {"base": "no_response"}
+    finally:
+        config_flow.ModbusClient = orig
+        server.close()
+
+
+async def test_flow_modbus_exception(hass: HomeAssistant):
+    values = {k: v for k, v in BOILER_VALUES.items() if k != 6499}
+    b = FakeBoiler(values)
+    port = await b.start()
+    try:
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"host": "127.0.0.1", "port": port, "unit": 1, "boiler_type": "nano"}
+        )
+        assert result["errors"] == {"base": "modbus_exception"}
+        assert "Register 6499" in result["description_placeholders"]["details"]
+    finally:
+        await b.stop()

@@ -39,7 +39,18 @@ from .const import (
     DOMAIN,
     REG_KEEPALIVE,
 )
-from .modbus import ModbusClient, ModbusError, decode_float
+import logging
+
+from .modbus import (
+    ModbusClient,
+    ModbusConnectError,
+    ModbusError,
+    ModbusExceptionResponse,
+    ModbusNoResponse,
+    decode_float,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 REG_OUTSIDE = 8
 REG_BOILER = 82
@@ -56,11 +67,16 @@ async def probe(host: str, port: int, unit: int) -> bool:
     Gibt word_swap zurück. Außen- und Kesseltemperatur müssen in einer der beiden
     Reihenfolgen plausibel sein; passt beides (oder keins), gilt die Voreinstellung.
     """
-    client = ModbusClient(host, port, unit)
+    client = ModbusClient(host, port, unit, timeout=8)
+    reg = REG_KEEPALIVE
     try:
         await client.read_holding(REG_KEEPALIVE, 2)
+        reg = REG_OUTSIDE
         outside = await client.read_holding(REG_OUTSIDE, 2)
+        reg = REG_BOILER
         boiler = await client.read_holding(REG_BOILER, 2)
+    except ModbusExceptionResponse as err:
+        raise ModbusExceptionResponse(f"Register {reg}: {err}", err.code) from err
     finally:
         await client.close()
     ok = {
@@ -77,6 +93,7 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        details = ""
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             port = int(user_input[CONF_PORT])
@@ -85,8 +102,18 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
             try:
                 swap = await probe(host, port, unit)
-            except ModbusError:
+            except ModbusConnectError as err:
                 errors["base"] = "cannot_connect"
+                details = str(err)
+            except ModbusNoResponse as err:
+                errors["base"] = "no_response"
+                details = str(err)
+            except ModbusExceptionResponse as err:
+                errors["base"] = "modbus_exception"
+                details = str(err)
+            except ModbusError as err:
+                errors["base"] = "no_response"
+                details = str(err)
             else:
                 return self.async_create_entry(
                     title="Hargassner",
@@ -115,7 +142,11 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
             }
         )
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        if errors:
+            _LOGGER.warning("Hargassner: Verbindungstest fehlgeschlagen: %s", details)
+        return self.async_show_form(
+            step_id="user", data_schema=schema, errors=errors, description_placeholders={"details": details}
+        )
 
     @staticmethod
     @callback

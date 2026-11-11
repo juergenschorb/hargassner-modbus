@@ -16,6 +16,22 @@ class ModbusError(Exception):
     """Fehler bei der Modbus-Kommunikation."""
 
 
+class ModbusConnectError(ModbusError):
+    """TCP-Verbindung kommt nicht zustande (falsche IP/Port, Proxy läuft nicht)."""
+
+
+class ModbusNoResponse(ModbusError):
+    """Verbunden, aber keine Antwort (z. B. falsche Geräteadresse, Proxy erreicht Kessel nicht)."""
+
+
+class ModbusExceptionResponse(ModbusError):
+    """Kessel antwortet mit einem Modbus-Fehlercode."""
+
+    def __init__(self, msg: str, code: int) -> None:
+        super().__init__(msg)
+        self.code = code
+
+
 class ModbusClient:
     """Modbus-TCP-Client mit automatischem Neuverbinden."""
 
@@ -40,7 +56,7 @@ class ModbusClient:
             )
         except (OSError, asyncio.TimeoutError) as err:
             self._reader = self._writer = None
-            raise ModbusError(f"Keine Verbindung zu {self.host}:{self.port}: {err}") from err
+            raise ModbusConnectError(f"Keine Verbindung zu {self.host}:{self.port}: {err}") from err
 
     async def close(self) -> None:
         writer = self._writer
@@ -74,10 +90,12 @@ class ModbusClient:
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:
                     await self.close()
                     if attempt == 2:
-                        raise ModbusError(f"Keine Antwort vom Kessel: {err!r}") from err
+                        raise ModbusNoResponse(f"Verbunden mit {self.host}:{self.port}, aber keine Antwort: {err!r}") from err
                     continue
                 if body[0] & 0x80:
-                    raise ModbusError(f"Kessel meldet Modbus-Fehler {body[1]} (Funktion {body[0] & 0x7F})")
+                    raise ModbusExceptionResponse(
+                        f"Kessel meldet Modbus-Fehler {body[1]} (Funktion {body[0] & 0x7F})", body[1]
+                    )
                 return body
         raise ModbusError("Keine Antwort vom Kessel")  # pragma: no cover
 

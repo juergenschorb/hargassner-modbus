@@ -16,7 +16,9 @@
       }
     },
     "error": {
-      "cannot_connect": "No answer from the boiler. Check IP, port and device address; if the boiler accepts only one connection, use a modbus proxy."
+      "cannot_connect": "No connection. Check IP address and port. With modbus-proxy this is the port the proxy listens on, not the boiler's 502. Details: {details}",
+      "no_response": "Connected but no answer. Check the unit address and whether the proxy reaches the boiler. Details: {details}",
+      "modbus_exception": "The boiler rejects the request. Details: {details}"
     },
     "abort": {
       "already_configured": "This boiler is already configured."

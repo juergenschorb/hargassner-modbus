@@ -16,7 +16,9 @@
       }
     },
     "error": {
-      "cannot_connect": "Keine Antwort vom Kessel. IP, Port und Geräteadresse prüfen; nimmt der Kessel nur eine Verbindung an, den modbus-proxy davorschalten."
+      "cannot_connect": "Keine Verbindung. IP-Adresse und Port prüfen. Beim modbus-proxy ist das der Port, auf dem der Proxy lauscht, nicht 502 des Kessels. Details: {details}",
+      "no_response": "Verbunden, aber keine Antwort. Geräteadresse prüfen und ob der Proxy den Kessel erreicht. Details: {details}",
+      "modbus_exception": "Der Kessel lehnt die Abfrage ab. Details: {details}"
     },
     "abort": {
       "already_configured": "Dieser Kessel ist schon eingerichtet."
