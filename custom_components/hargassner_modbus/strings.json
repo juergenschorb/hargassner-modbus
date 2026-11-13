@@ -71,7 +71,7 @@
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
-          "register": "6998 per Hargassner manual V01. Only change if your boiler is known to use another address.",
+          "register": "Default 6999 as in Hargassner's Loxone template (manual V01 lists 6998). Only change if your boiler is known to use another address.",
           "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit.",
           "shift": "The curve follows the highest target of the selected rooms; with all rooms on eco at night the flow drops by itself (about 1 + slope K per K).",
           "ref_room": "The entered curve applies to this room target (21 °C for Hargassner and Loxone)."
@@ -97,7 +97,7 @@
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
-          "register": "6999 per Hargassner manual V01. Only change if your boiler is known to use another address.",
+          "register": "Default 7000 as in Hargassner's Loxone template (manual V01 lists 6999). Only change if your boiler is known to use another address.",
           "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit.",
           "shift": "The curve follows the highest target of the selected rooms; with all rooms on eco at night the flow drops by itself (about 1 + slope K per K).",
           "ref_room": "The entered curve applies to this room target (21 °C for Hargassner and Loxone)."

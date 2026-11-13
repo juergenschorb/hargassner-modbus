@@ -28,7 +28,10 @@ KEEPALIVE_INTERVAL = 10  # s
 VALUES_EVERY = 3  # Messwerte bei jedem 3. Lebenszeichen lesen, also alle 30 s
 # Solltemperatur HK1/HK2: uint16, FC16, zyklisch alle 60 s wie Loxone.
 # Nur sinnvoll, wenn der Heizkreis am Kessel auf „Loxone“ steht (dann entfällt dessen Heizkurve).
-HK_SETPOINT_REGS = {"hk1": 6998, "hk2": 6999}
+# Adressen wie in der offiziellen Loxone-Vorlage „Hargassner Heizkesselsteuerung“ (v1.0.1) und im
+# laufenden Loxone-Programm: HK1 6999, HK2 7000. Die Anleitung V01 nennt je eins weniger (6998/6999).
+# Loxone überträgt die IO-Adresse unverändert: Lebenszeichen 6499 liest bei Loxone und hier denselben Wert.
+HK_SETPOINT_REGS = {"hk1": 6999, "hk2": 7000}
 REG_HK2_SETPOINT = HK_SETPOINT_REGS["hk2"]
 WRITE_INTERVAL = 60  # s
 

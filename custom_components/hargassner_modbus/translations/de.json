@@ -71,7 +71,7 @@
           "rooms": "Thermostate der Räume an HK1 (OG/DG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
           "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
-          "register": "Laut Hargassner-Anleitung V01 6998. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
+          "register": "Standard 6999 wie in der Loxone-Vorlage von Hargassner (Anleitung V01 nennt 6998). Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
           "request_entities": "Ist eine dieser Entitäten an (oder ein Wert über 0), gilt mindestens der folgende Vorlauf, auch über der Heizgrenze.",
           "shift": "Die Kurve folgt dem höchsten Soll der gewählten Räume. Stehen nachts alle auf Eco, sinkt der Vorlauf von selbst (je K Soll etwa 1 + Steilheit K).",
           "ref_room": "Für dieses Raumsoll gilt die eingegebene Kurve (Hargassner und Loxone rechnen mit 21 °C)."
@@ -97,7 +97,7 @@
           "rooms": "Thermostate der Räume an HK2 (EG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
           "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
-          "register": "Laut Hargassner-Anleitung V01 6999. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
+          "register": "Standard 7000 wie in der Loxone-Vorlage von Hargassner (Anleitung V01 nennt 6999). Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
           "request_entities": "Ist eine dieser Entitäten an (oder ein Wert über 0), gilt mindestens der folgende Vorlauf, auch über der Heizgrenze.",
           "shift": "Die Kurve folgt dem höchsten Soll der gewählten Räume. Stehen nachts alle auf Eco, sinkt der Vorlauf von selbst (je K Soll etwa 1 + Steilheit K).",
           "ref_room": "Für dieses Raumsoll gilt die eingegebene Kurve (Hargassner und Loxone rechnen mit 21 °C)."

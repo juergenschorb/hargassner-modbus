@@ -99,10 +99,10 @@ async def test_keepalive_and_hk2_write(hass: HomeAssistant, boiler):
     assert boiler.writes == []
     # Freigabe -> sofort schreiben (gerundet)
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (6999, [45])
+    assert boiler.writes[-1] == (7000, [45])
     # Grenze: über Höchstwert wird begrenzt
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 60}, blocking=True)
-    assert boiler.writes[-1] == (6999, [60])
+    assert boiler.writes[-1] == (7000, [60])
     # zyklisch alle 60 s
     k = len(boiler.writes)
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
@@ -128,7 +128,7 @@ async def test_restore_after_restart(hass: HomeAssistant, boiler):
     assert hass.states.get("switch.hargassner_control_hc2").state == "on"
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert boiler.writes and boiler.writes[-1] == (6999, [41])
+    assert boiler.writes and boiler.writes[-1] == (7000, [41])
 
 
 async def test_unavailable_when_boiler_gone(hass: HomeAssistant, boiler):
@@ -189,7 +189,7 @@ async def test_options_extras_and_limits(hass: HomeAssistant):
         assert st.attributes["max"] == 50
         await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 48}, blocking=True)
         await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-        assert b.writes[-1] == (6999, [48])
+        assert b.writes[-1] == (7000, [48])
     finally:
         await b.stop()
 
@@ -202,19 +202,19 @@ async def test_hk1_write_independent(hass: HomeAssistant, boiler):
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc1_setpoint", "value": 38}, blocking=True)
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 33}, blocking=True)
     assert boiler.writes == []
-    # nur HK1 frei -> nur 6998
+    # nur HK1 frei -> nur 6999
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
-    assert boiler.writes == [(6998, [38])]
+    assert boiler.writes == [(6999, [38])]
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert {w[0] for w in boiler.writes} == {6998}
+    assert {w[0] for w in boiler.writes} == {6999}
     # HK2 dazu -> beide im Takt
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (6999, [33])
+    assert boiler.writes[-1] == (7000, [33])
     k = len(boiler.writes)
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=125))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert sorted(boiler.writes[k:]) == [(6998, [38]), (6999, [33])]
+    assert sorted(boiler.writes[k:]) == [(6999, [38]), (7000, [33])]
 
 
 
@@ -250,17 +250,17 @@ async def test_flow_calculation_and_auto(hass: HomeAssistant, boiler):
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
     assert boiler.writes == []
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (6999, [41])
+    assert boiler.writes[-1] == (7000, [41])
     # alle Räume warm -> Absenkung, höchstens 5 K: 35,9 + 1,9 - 5 -> 33
     hass.states.async_set("climate.eg_bad", "heat", {"current_temperature": 24.0, "temperature": 22.0, "friendly_name": "EG Bad"})
     hass.states.async_set("climate.eg_wohnen", "heat", {"current_temperature": 23.0, "temperature": 21.0, "friendly_name": "EG Wohnen"})
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert boiler.writes[-1] == (6999, [33])
+    assert boiler.writes[-1] == (7000, [33])
     # Automatik aus -> wieder die manuelle Vorgabe
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 44}, blocking=True)
     await hass.services.async_call("switch", "turn_off", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (6999, [44])
+    assert boiler.writes[-1] == (7000, [44])
     # Raum nachträglich entfernen
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
@@ -347,13 +347,13 @@ async def test_register_configurable(hass: HomeAssistant, boiler):
     result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"register": 7000, "min": 20, "max": 60, "rooms": [], "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
+        {"register": 7001, "min": 20, "max": 60, "rooms": [], "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
     )
     await hass.async_block_till_done(wait_background_tasks=True)
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 40}, blocking=True)
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (7000, [40])
-    assert hass.states.get("switch.hargassner_control_hc2").attributes["register"] == 7000
+    assert boiler.writes[-1] == (7001, [40])
+    assert hass.states.get("switch.hargassner_control_hc2").attributes["register"] == 7001
 
 
 async def test_extra_demand_minimum(hass: HomeAssistant, boiler):
