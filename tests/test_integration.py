@@ -351,3 +351,24 @@ async def test_register_configurable(hass: HomeAssistant, boiler):
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
     assert boiler.writes[-1] == (7000, [40])
     assert hass.states.get("switch.hargassner_control_hc2").attributes["register"] == 7000
+
+
+async def test_extra_demand_minimum(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.states.async_set("number.handtuch_ventil", "0", {"friendly_name": "Handtuchheizkörper"})
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk2"})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"min": 20, "max": 65, "rooms": [], "request_entities": ["number.handtuch_ventil"], "request_min": 45,
+         "out_cold": -10, "flow_cold": 50, "out_warm": 15, "flow_warm": 28},
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get("sensor.hargassner_flow_hc2_calculated").state == "36"
+    hass.states.async_set("number.handtuch_ventil", "100", {"friendly_name": "Handtuchheizkörper"})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=15))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
+    assert st.state == "45"
+    assert st.attributes["anforderung"] == ["Handtuchheizkörper"]

@@ -112,3 +112,6 @@ ROOM_DEADBAND = 0.2  # kleinere Abweichungen ignorieren
 
 # je Heizkreis: f"{hk}_rooms", f"{hk}_out_cold", f"{hk}_flow_cold", f"{hk}_out_warm", f"{hk}_flow_warm"
 DEFAULT_CURVE = {"out_cold": -10.0, "flow_cold": 50.0, "out_warm": 15.0, "flow_warm": 28.0}
+
+# Zusatzanforderung je Heizkreis: f"{hk}_request_entities", f"{hk}_request_min"
+DEFAULT_REQUEST_MIN = 35

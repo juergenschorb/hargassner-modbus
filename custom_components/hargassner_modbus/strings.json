@@ -61,13 +61,16 @@
           "out_cold": "Curve: cold point, outdoor",
           "flow_cold": "Curve: cold point, flow",
           "out_warm": "Curve: warm point, outdoor",
-          "flow_warm": "Curve: warm point, flow"
+          "flow_warm": "Curve: warm point, flow",
+          "request_entities": "Extra demand (e.g. towel radiator)",
+          "request_min": "Minimum flow on extra demand"
         },
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
-          "register": "6998 per Hargassner manual V01. Only change if your boiler is known to use another address."
+          "register": "6998 per Hargassner manual V01. Only change if your boiler is known to use another address.",
+          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit."
         }
       },
       "hk2": {
@@ -80,13 +83,16 @@
           "out_cold": "Curve: cold point, outdoor",
           "flow_cold": "Curve: cold point, flow",
           "out_warm": "Curve: warm point, outdoor",
-          "flow_warm": "Curve: warm point, flow"
+          "flow_warm": "Curve: warm point, flow",
+          "request_entities": "Extra demand (e.g. towel radiator)",
+          "request_min": "Minimum flow on extra demand"
         },
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
-          "register": "6999 per Hargassner manual V01. Only change if your boiler is known to use another address."
+          "register": "6999 per Hargassner manual V01. Only change if your boiler is known to use another address.",
+          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit."
         }
       }
     },

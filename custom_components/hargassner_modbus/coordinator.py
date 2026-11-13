@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_HK_MIN,
     DEFAULT_ROOM_BOOST_MAX,
     DEFAULT_ROOM_GAIN,
+    DEFAULT_REQUEST_MIN,
     DEFAULT_ROOM_LOWER_MAX,
     ROOM_DEADBAND,
     DOMAIN,
@@ -121,6 +122,25 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             reason = "Heizgrenze erreicht"
         else:
             value = int(round(max(lo, min(hi, curve + corr))))
+
+        # Zusatzanforderung (z. B. Handtuchheizkörper): Vorlauf mindestens X °C
+        requests = []
+        for eid in o.get(f"{hk}_request_entities", []) or []:
+            st = self.hass.states.get(eid)
+            if st is None:
+                continue
+            active = st.state in ("on", "heat", "open", "active")
+            if not active:
+                try:
+                    active = float(st.state) > 0
+                except ValueError:
+                    active = False
+            if active:
+                requests.append(st.name)
+        request_min = int(o.get(f"{hk}_request_min", DEFAULT_REQUEST_MIN))
+        if requests and value < request_min:
+            value = min(hi, request_min)
+            reason = f"{', '.join(requests)} an (mind. {request_min} °C)"
         return {
             "value": value,
             "aussen": round(t_out, 1),
@@ -129,6 +149,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "raum": room,
             "grund": reason,
             "raeume": len(rooms),
+            "anforderung": requests or None,
         }
 
     async def _async_update_data(self) -> dict[str, Any]:

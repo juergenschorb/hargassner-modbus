@@ -33,6 +33,7 @@ from .const import (
     DEFAULT_HK_MIN,
     DEFAULT_ROOM_BOOST_MAX,
     DEFAULT_ROOM_GAIN,
+    DEFAULT_REQUEST_MIN,
     DEFAULT_ROOM_LOWER_MAX,
     DEFAULT_PORT,
     DEFAULT_UNIT,
@@ -224,6 +225,8 @@ class HargassnerOptionsFlow(OptionsFlow):
                 f"{hk}_min": int(user_input["min"]),
                 f"{hk}_max": int(user_input["max"]),
                 f"{hk}_rooms": list(user_input.get("rooms", [])),
+                f"{hk}_request_entities": list(user_input.get("request_entities", [])),
+                f"{hk}_request_min": int(user_input.get("request_min", o.get(f"{hk}_request_min", DEFAULT_REQUEST_MIN))),
                 f"{hk}_register": int(user_input.get("register", o.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))),
                 **{f"{hk}_{k}": float(user_input[k]) for k in DEFAULT_CURVE},
             }
@@ -250,6 +253,12 @@ class HargassnerOptionsFlow(OptionsFlow):
                 vol.Optional("rooms", default=o.get(f"{hk}_rooms", [])): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="climate", multiple=True)
                 ),
+                vol.Optional("request_entities", default=o.get(f"{hk}_request_entities", [])): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain=["switch", "input_boolean", "binary_sensor", "light", "number", "input_number"], multiple=True
+                    )
+                ),
+                vol.Required("request_min", default=o.get(f"{hk}_request_min", DEFAULT_REQUEST_MIN)): temp,
                 vol.Required("out_cold", default=o.get(f"{hk}_out_cold", DEFAULT_CURVE["out_cold"])): outside,
                 vol.Required("flow_cold", default=o.get(f"{hk}_flow_cold", DEFAULT_CURVE["flow_cold"])): temp,
                 vol.Required("out_warm", default=o.get(f"{hk}_out_warm", DEFAULT_CURVE["out_warm"])): outside,

@@ -61,13 +61,16 @@
           "out_cold": "Heizkurve: kalter Punkt, außen",
           "flow_cold": "Heizkurve: kalter Punkt, Vorlauf",
           "out_warm": "Heizkurve: warmer Punkt, außen",
-          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf"
+          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf",
+          "request_entities": "Zusatzanforderung (z. B. Handtuchheizkörper)",
+          "request_min": "Vorlauf mindestens bei Zusatzanforderung"
         },
         "data_description": {
           "rooms": "Thermostate der Räume an HK1 (OG/DG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
           "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
-          "register": "Laut Hargassner-Anleitung V01 6998. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt."
+          "register": "Laut Hargassner-Anleitung V01 6998. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
+          "request_entities": "Ist eine dieser Entitäten an (oder ein Wert über 0), gilt mindestens der folgende Vorlauf, auch über der Heizgrenze."
         }
       },
       "hk2": {
@@ -80,13 +83,16 @@
           "out_cold": "Heizkurve: kalter Punkt, außen",
           "flow_cold": "Heizkurve: kalter Punkt, Vorlauf",
           "out_warm": "Heizkurve: warmer Punkt, außen",
-          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf"
+          "flow_warm": "Heizkurve: warmer Punkt, Vorlauf",
+          "request_entities": "Zusatzanforderung (z. B. Handtuchheizkörper)",
+          "request_min": "Vorlauf mindestens bei Zusatzanforderung"
         },
         "data_description": {
           "rooms": "Thermostate der Räume an HK2 (EG) (Versatile Thermostat, Better Thermostat …). Jederzeit hinzufügen oder entfernen.",
           "max": "Höher wird nie geschrieben, auch nicht von der Automatik.",
           "out_cold": "Zwischen den beiden Punkten wird gerade gerechnet, außerhalb verlängert.",
-          "register": "Laut Hargassner-Anleitung V01 6999. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt."
+          "register": "Laut Hargassner-Anleitung V01 6999. Nur ändern, wenn sicher ist, dass dein Kessel eine andere Adresse nutzt.",
+          "request_entities": "Ist eine dieser Entitäten an (oder ein Wert über 0), gilt mindestens der folgende Vorlauf, auch über der Heizgrenze."
         }
       }
     },
