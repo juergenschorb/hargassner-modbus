@@ -234,9 +234,12 @@ async def test_flow_calculation_and_auto(hass: HomeAssistant, boiler):
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done(wait_background_tasks=True)
-    # gemittelt 6 °C -> Kurve 35,9 °C; Bad 1 K zu kalt -> +3 K -> 39 °C; Gast ist aus und zählt nicht
+    # gemittelt 6 °C -> Kurve 35,9 °C; höchstes Soll 22 °C -> +1,9 K (Steilheit 0,88);
+    # Bad 1 K zu kalt -> +3 K -> 41 °C; Gast ist aus und zählt nicht
     st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
-    assert st.state == "39"
+    assert st.state == "41"
+    assert st.attributes["verschiebung"] == 1.9
+    assert st.attributes["raumsoll_max"] == 22.0
     assert st.attributes["kurve"] == 35.9
     assert st.attributes["raum"] == "EG Bad"
     assert st.attributes["raeume"] == 2
@@ -247,13 +250,13 @@ async def test_flow_calculation_and_auto(hass: HomeAssistant, boiler):
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
     assert boiler.writes == []
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc2"}, blocking=True)
-    assert boiler.writes[-1] == (6999, [39])
-    # alle Räume warm -> Absenkung, höchstens 5 K
+    assert boiler.writes[-1] == (6999, [41])
+    # alle Räume warm -> Absenkung, höchstens 5 K: 35,9 + 1,9 - 5 -> 33
     hass.states.async_set("climate.eg_bad", "heat", {"current_temperature": 24.0, "temperature": 22.0, "friendly_name": "EG Bad"})
     hass.states.async_set("climate.eg_wohnen", "heat", {"current_temperature": 23.0, "temperature": 21.0, "friendly_name": "EG Wohnen"})
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=61))
     await hass.async_block_till_done(wait_background_tasks=True)
-    assert boiler.writes[-1] == (6999, [31])
+    assert boiler.writes[-1] == (6999, [33])
     # Automatik aus -> wieder die manuelle Vorgabe
     await hass.services.async_call("number", "set_value", {"entity_id": "number.hargassner_flow_hc2_setpoint", "value": 44}, blocking=True)
     await hass.services.async_call("switch", "turn_off", {"entity_id": "switch.hargassner_automatic_hc2"}, blocking=True)
@@ -372,3 +375,32 @@ async def test_extra_demand_minimum(hass: HomeAssistant, boiler):
     st = hass.states.get("sensor.hargassner_flow_hc2_calculated")
     assert st.state == "45"
     assert st.attributes["anforderung"] == ["Handtuchheizkörper"]
+
+
+
+async def test_curve_follows_room_target(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    # Nacht: beide Räume Eco 18 °C und genau auf Soll
+    hass.states.async_set("climate.a", "heat", {"current_temperature": 18.0, "temperature": 18.0})
+    hass.states.async_set("climate.b", "heat", {"current_temperature": 18.0, "temperature": 18.0})
+    hk1 = {"min": 20, "max": 65, "rooms": ["climate.a", "climate.b"], "shift": True, "ref_room": 21,
+           "out_cold": -10, "flow_cold": 71, "out_warm": 15, "flow_warm": 31}
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk1"})
+    await hass.config_entries.options.async_configure(result["flow_id"], hk1)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    # Kurve bei 6 °C: 71 - 16*1,6 = 45,4; Soll 18 statt 21: -(1+1,6)*3 = -7,8 -> 37,6 -> 38
+    assert hass.states.get("sensor.hargassner_flow_hc1_calculated").state == "38"
+    # Morgens: ein Raum auf Komfort 21 °C -> volle Kurve (Raum noch 18 °C -> Anhebung höchstens 10 K)
+    hass.states.async_set("climate.a", "heat", {"current_temperature": 20.8, "temperature": 21.0})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=15))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get("sensor.hargassner_flow_hc1_calculated").state == "45"
+    # Verschiebung aus
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "hk1"})
+    hass.states.async_set("climate.a", "heat", {"current_temperature": 18.0, "temperature": 18.0})
+    await hass.config_entries.options.async_configure(result["flow_id"], {**hk1, "shift": False})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get("sensor.hargassner_flow_hc1_calculated").state == "45"

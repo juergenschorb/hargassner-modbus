@@ -63,14 +63,18 @@
           "out_warm": "Curve: warm point, outdoor",
           "flow_warm": "Curve: warm point, flow",
           "request_entities": "Extra demand (e.g. towel radiator)",
-          "request_min": "Minimum flow on extra demand"
+          "request_min": "Minimum flow on extra demand",
+          "shift": "Shift curve with room target",
+          "ref_room": "Room target of the curve"
         },
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
           "register": "6998 per Hargassner manual V01. Only change if your boiler is known to use another address.",
-          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit."
+          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit.",
+          "shift": "The curve follows the highest target of the selected rooms; with all rooms on eco at night the flow drops by itself (about 1 + slope K per K).",
+          "ref_room": "The entered curve applies to this room target (21 °C for Hargassner and Loxone)."
         }
       },
       "hk2": {
@@ -85,14 +89,18 @@
           "out_warm": "Curve: warm point, outdoor",
           "flow_warm": "Curve: warm point, flow",
           "request_entities": "Extra demand (e.g. towel radiator)",
-          "request_min": "Minimum flow on extra demand"
+          "request_min": "Minimum flow on extra demand",
+          "shift": "Shift curve with room target",
+          "ref_room": "Room target of the curve"
         },
         "data_description": {
           "rooms": "Thermostats of the rooms on this circuit. Add or remove any time.",
           "max": "Never written higher, not even by the automatic mode.",
           "out_cold": "Linear between the two points, extended beyond them.",
           "register": "6999 per Hargassner manual V01. Only change if your boiler is known to use another address.",
-          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit."
+          "request_entities": "If any of these is on (or above 0), at least the following flow applies, even above the heating limit.",
+          "shift": "The curve follows the highest target of the selected rooms; with all rooms on eco at night the flow drops by itself (about 1 + slope K per K).",
+          "ref_room": "The entered curve applies to this room target (21 °C for Hargassner and Loxone)."
         }
       }
     },

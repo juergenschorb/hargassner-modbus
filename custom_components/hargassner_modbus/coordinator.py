@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_HK_MIN,
     DEFAULT_ROOM_BOOST_MAX,
     DEFAULT_ROOM_GAIN,
+    DEFAULT_REF_ROOM,
     DEFAULT_REQUEST_MIN,
     DEFAULT_ROOM_LOWER_MAX,
     ROOM_DEADBAND,
@@ -116,12 +117,24 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 reason = f"Räume auf Soll (am kältesten {room})"
 
+        # Kurve mit dem höchsten Raumsoll verschieben (wie der Heizungsmischer der Loxone):
+        # Vorlauf ≈ Raumsoll + Steilheit·(Raumsoll − außen) → je K Raumsoll (1 + Steilheit) K Vorlauf
+        shift = 0.0
+        target_max = None
+        if rooms and o.get(f"{hk}_shift", True):
+            target_max = max(r[3] for r in rooms)
+            slope = (c["flow_cold"] - c["flow_warm"]) / span
+            shift = (1 + slope) * (target_max - float(o.get(f"{hk}_ref_room", DEFAULT_REF_ROOM)))
+            if abs(shift) >= 0.5:
+                reason += f"; Raumsoll {target_max:.1f} °C: {shift:+.1f} K".replace(".", ",")
+        curve_shifted = curve + shift
+
         lo, hi = self.limits(hk)
         if t_out >= float(o.get(CONF_HEAT_LIMIT, DEFAULT_HEAT_LIMIT)):
             value = lo
             reason = "Heizgrenze erreicht"
         else:
-            value = int(round(max(lo, min(hi, curve + corr))))
+            value = int(round(max(lo, min(hi, curve_shifted + corr))))
 
         # Zusatzanforderung (z. B. Handtuchheizkörper): Vorlauf mindestens X °C
         requests = []
@@ -145,6 +158,8 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "value": value,
             "aussen": round(t_out, 1),
             "kurve": round(curve, 1),
+            "verschiebung": round(shift, 1),
+            "raumsoll_max": target_max,
             "korrektur": round(corr, 1),
             "raum": room,
             "grund": reason,

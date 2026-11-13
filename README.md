@@ -58,13 +58,14 @@ Unter **Konfigurieren** gibt es drei Bereiche:
 Je Heizkreis gibt es den Sensor **„Vorlauf HKx berechnet“** und den Schalter **„HKx Automatik“**.
 
 1. **Heizkurve:** Zwei Punkte, z. B. −10 °C außen → 50 °C Vorlauf und +15 °C außen → 28 °C Vorlauf. Dazwischen wird gerade gerechnet, außerhalb verlängert. Als Außentemperatur dient die **gemittelte** Außentemperatur des Kessels.
-2. **Raumbedarf:** Aus den ausgewählten Thermostaten (z. B. Versatile Thermostat, Better Thermostat) zählt der Raum mit der größten Lücke Soll − Ist. Thermostate, die aus oder nicht verfügbar sind, zählen nicht.
+2. **Raumsoll:** Die Kurve gilt für ein Raumsoll von 21 °C (einstellbar). Sie verschiebt sich mit dem **höchsten Soll** der gewählten Räume um (1 + Steilheit) K je K, wie beim Heizungsmischer der Loxone. Stehen nachts alle Räume auf Eco, sinkt der Vorlauf damit von selbst; eine eigene Nachtabsenkung ist nicht nötig. Abschaltbar je Heizkreis.
+3. **Raumbedarf:** Aus den ausgewählten Thermostaten (z. B. Versatile Thermostat, Better Thermostat) zählt der Raum mit der größten Lücke Soll − Ist. Thermostate, die aus oder nicht verfügbar sind, zählen nicht.
    - Raum zu kalt: Vorlauf + (Lücke × „Anhebung je K“, Standard 3), höchstens „Anhebung höchstens“ (10 K).
    - Alle Räume über Soll: Vorlauf entsprechend tiefer, höchstens „Absenkung höchstens“ (5 K).
    - Abweichungen bis 0,2 K werden ignoriert.
-3. **Zusatzanforderung:** Je Heizkreis lassen sich Entitäten wählen (z. B. den Timer eines Handtuchheizkörpers). Ist eine davon an, aktiv oder über 0, gilt mindestens der eingestellte Vorlauf (Standard 35 °C), auch über der Heizgrenze.
-4. **Heizgrenze:** Ab der eingestellten gemittelten Außentemperatur (Standard 18 °C) gilt nur noch der Mindest-Vorlauf.
-5. Das Ergebnis wird auf ganze Grad gerundet und auf Mindest-/Höchstwert begrenzt.
+4. **Zusatzanforderung:** Je Heizkreis lassen sich Entitäten wählen (z. B. den Timer eines Handtuchheizkörpers). Ist eine davon an, aktiv oder über 0, gilt mindestens der eingestellte Vorlauf (Standard 35 °C), auch über der Heizgrenze.
+5. **Heizgrenze:** Ab der eingestellten gemittelten Außentemperatur (Standard 18 °C) gilt nur noch der Mindest-Vorlauf.
+6. Das Ergebnis wird auf ganze Grad gerundet und auf Mindest-/Höchstwert begrenzt.
 
 Die Attribute des Sensors zeigen Außentemperatur, Kurvenwert, Korrektur, maßgeblichen Raum und Grund, z. B. „EG Bad 1,2 K zu kalt“.
 
@@ -121,4 +122,4 @@ pytest
 
 ## Stand
 
-Version 0.4.1.
+Version 0.5.0.

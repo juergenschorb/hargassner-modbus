@@ -33,6 +33,7 @@ from .const import (
     DEFAULT_HK_MIN,
     DEFAULT_ROOM_BOOST_MAX,
     DEFAULT_ROOM_GAIN,
+    DEFAULT_REF_ROOM,
     DEFAULT_REQUEST_MIN,
     DEFAULT_ROOM_LOWER_MAX,
     DEFAULT_PORT,
@@ -225,6 +226,8 @@ class HargassnerOptionsFlow(OptionsFlow):
                 f"{hk}_min": int(user_input["min"]),
                 f"{hk}_max": int(user_input["max"]),
                 f"{hk}_rooms": list(user_input.get("rooms", [])),
+                f"{hk}_shift": bool(user_input.get("shift", o.get(f"{hk}_shift", True))),
+                f"{hk}_ref_room": float(user_input.get("ref_room", o.get(f"{hk}_ref_room", DEFAULT_REF_ROOM))),
                 f"{hk}_request_entities": list(user_input.get("request_entities", [])),
                 f"{hk}_request_min": int(user_input.get("request_min", o.get(f"{hk}_request_min", DEFAULT_REQUEST_MIN))),
                 f"{hk}_register": int(user_input.get("register", o.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))),
@@ -252,6 +255,10 @@ class HargassnerOptionsFlow(OptionsFlow):
                 vol.Required("max", default=o.get(f"{hk}_max", DEFAULT_HK_MAX)): temp,
                 vol.Optional("rooms", default=o.get(f"{hk}_rooms", [])): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="climate", multiple=True)
+                ),
+                vol.Required("shift", default=o.get(f"{hk}_shift", True)): bool,
+                vol.Required("ref_room", default=o.get(f"{hk}_ref_room", DEFAULT_REF_ROOM)): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=15, max=25, step=0.5, unit_of_measurement="°C", mode=selector.NumberSelectorMode.BOX)
                 ),
                 vol.Optional("request_entities", default=o.get(f"{hk}_request_entities", [])): selector.EntitySelector(
                     selector.EntitySelectorConfig(

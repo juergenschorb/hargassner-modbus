@@ -115,3 +115,6 @@ DEFAULT_CURVE = {"out_cold": -10.0, "flow_cold": 50.0, "out_warm": 15.0, "flow_w
 
 # Zusatzanforderung je Heizkreis: f"{hk}_request_entities", f"{hk}_request_min"
 DEFAULT_REQUEST_MIN = 35
+
+# Kurvenverschiebung mit höchstem Raumsoll: f"{hk}_shift" (bool), f"{hk}_ref_room" (Raumsoll der Kurve)
+DEFAULT_REF_ROOM = 21.0
