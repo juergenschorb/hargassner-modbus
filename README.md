@@ -62,7 +62,7 @@ Je Heizkreis gibt es den Sensor **„Vorlauf HKx berechnet“** und den Schalter
    - Raum zu kalt: Vorlauf + (Lücke × „Anhebung je K“, Standard 3), höchstens „Anhebung höchstens“ (10 K).
    - Alle Räume über Soll: Vorlauf entsprechend tiefer, höchstens „Absenkung höchstens“ (5 K).
    - Abweichungen bis 0,2 K werden ignoriert.
-3. **Zusatzanforderung:** Je Heizkreis lassen sich Entitäten wählen (z. B. das Ventil eines Handtuchheizkörpers, der nicht an der Raumregelung hängt). Ist eine davon an oder über 0, gilt mindestens der eingestellte Vorlauf (Standard 35 °C), auch über der Heizgrenze.
+3. **Zusatzanforderung:** Je Heizkreis lassen sich Entitäten wählen (z. B. den Timer eines Handtuchheizkörpers). Ist eine davon an, aktiv oder über 0, gilt mindestens der eingestellte Vorlauf (Standard 35 °C), auch über der Heizgrenze.
 4. **Heizgrenze:** Ab der eingestellten gemittelten Außentemperatur (Standard 18 °C) gilt nur noch der Mindest-Vorlauf.
 5. Das Ergebnis wird auf ganze Grad gerundet und auf Mindest-/Höchstwert begrenzt.
 
@@ -121,4 +121,4 @@ pytest
 
 ## Stand
 
-Version 0.4.0.
+Version 0.4.1.

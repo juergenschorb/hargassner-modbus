@@ -255,7 +255,7 @@ class HargassnerOptionsFlow(OptionsFlow):
                 ),
                 vol.Optional("request_entities", default=o.get(f"{hk}_request_entities", [])): selector.EntitySelector(
                     selector.EntitySelectorConfig(
-                        domain=["switch", "input_boolean", "binary_sensor", "light", "number", "input_number"], multiple=True
+                        domain=["switch", "input_boolean", "binary_sensor", "light", "number", "input_number", "timer"], multiple=True
                     )
                 ),
                 vol.Required("request_min", default=o.get(f"{hk}_request_min", DEFAULT_REQUEST_MIN)): temp,
