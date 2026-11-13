@@ -404,3 +404,17 @@ async def test_curve_follows_room_target(hass: HomeAssistant, boiler):
     await hass.config_entries.options.async_configure(result["flow_id"], {**hk1, "shift": False})
     await hass.async_block_till_done(wait_background_tasks=True)
     assert hass.states.get("sensor.hargassner_flow_hc1_calculated").state == "45"
+
+
+async def test_migrates_old_register_defaults(hass: HomeAssistant, boiler):
+    entry = MockConfigEntry(
+        domain=DOMAIN, version=1, minor_version=1,
+        data={"host": "127.0.0.1", "port": boiler.port, "unit": 1},
+        options={"word_swap": True, "boiler_type": "nano", "hk1_register": 6998, "hk2_register": 6999},
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert entry.minor_version == 2
+    assert entry.options["hk1_register"] == 6999
+    assert entry.options["hk2_register"] == 7000

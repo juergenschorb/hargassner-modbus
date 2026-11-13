@@ -31,6 +31,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: HargassnerConfigEntry) -
     return True
 
 
+# Bis 0.5.0 galten die Schreibregister aus der Anleitung V01 (HK1 6998, HK2 6999).
+# Richtig sind die Adressen der Loxone-Vorlage (HK1 6999, HK2 7000).
+_OLD_REGS = {"hk1": 6998, "hk2": 6999}
+_NEW_REGS = {"hk1": 6999, "hk2": 7000}
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        options = dict(entry.options)
+        for hk, old in _OLD_REGS.items():
+            if options.get(f"{hk}_register") == old:
+                options[f"{hk}_register"] = _NEW_REGS[hk]
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+    return True
+
+
 async def _async_reload(hass: HomeAssistant, entry: HargassnerConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 

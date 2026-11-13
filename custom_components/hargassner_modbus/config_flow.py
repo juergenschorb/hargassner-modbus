@@ -110,6 +110,7 @@ async def probe(host: str, port: int, unit: int, timeout: float = 6) -> bool:
 
 class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
+    MINOR_VERSION = 2
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
