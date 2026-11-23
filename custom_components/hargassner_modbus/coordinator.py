@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 import math
+from time import monotonic
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -43,6 +44,7 @@ from .modbus import ModbusClient, ModbusError, decode_float
 
 _LOGGER = logging.getLogger(__name__)
 
+OUTDOOR_HOLD = 3600  # s: so lange wird eine fehlende Außentemperatur durch den letzten Wert ersetzt
 NO_CALC = "Kein berechneter Vorlauf (Außentemperatur fehlt)"
 
 
@@ -67,6 +69,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Automatik: statt der manuellen Vorgabe den berechneten Vorlauf senden
         self.auto: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
         self._unsub_write = None
+        self._last_out: tuple[float, float] | None = None
 
     @property
     def options(self) -> dict[str, Any]:
@@ -96,6 +99,11 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         t_out = data.get("aussen_gemittelt")
         if t_out is None:
             t_out = data.get("aussen")
+        now = monotonic()
+        if t_out is not None:
+            self._last_out = (t_out, now)
+        elif self._last_out and now - self._last_out[1] <= OUTDOOR_HOLD:
+            t_out = self._last_out[0]  # einzelner Lesefehler: letzten Wert noch eine Weile verwenden
         if t_out is None:
             return None
         c = {k: float(o.get(f"{hk}_{k}", v)) for k, v in DEFAULT_CURVE.items()}
@@ -225,7 +233,10 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _write_tick(self, _now=None) -> None:
         for hk in HK_SETPOINT_REGS:
-            await self.async_write_hk(hk)
+            try:
+                await self.async_write_hk(hk)
+            except Exception:  # noqa: BLE001 - ein Fehler bei HK1 darf HK2 nicht blockieren
+                _LOGGER.exception("Vorlauf-Soll %s konnte nicht gesendet werden", hk.upper())
 
     async def async_write_hk(self, hk: str) -> None:
         """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""

@@ -464,7 +464,10 @@ async def test_extra_sensors_detected_and_selectable(hass: HomeAssistant):
         await b.stop()
 
 
-async def test_auto_without_outdoor_writes_nothing(hass: HomeAssistant, boiler):
+async def test_auto_without_outdoor_writes_nothing(hass: HomeAssistant, boiler, monkeypatch):
+    from custom_components.hargassner_modbus import coordinator as coord
+
+    monkeypatch.setattr(coord, "OUTDOOR_HOLD", 0)  # letzten Außenwert nicht halten
     await _setup_via_flow(hass, boiler.port)
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc1"}, blocking=True)
     await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
@@ -483,3 +486,30 @@ async def test_auto_without_outdoor_writes_nothing(hass: HomeAssistant, boiler):
     st = hass.states.get("switch.hargassner_control_hc1")
     assert st.attributes["schreiben_ok"] is False
     assert "Außentemperatur" in st.attributes["fehler"]
+
+
+async def test_outdoor_value_held_after_single_read_failure(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    assert c.compute("hk1") is not None
+    c.data = {**c.data, "aussen": None, "aussen_gemittelt": None}
+    assert c.compute("hk1") is not None  # letzter Wert wird gehalten
+    c._last_out = (c._last_out[0], c._last_out[1] - 7200)
+    assert c.compute("hk1") is None  # nach einer Stunde nicht mehr
+
+
+async def test_hk1_error_does_not_block_hk2(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    c.write_enabled["hk2"] = True
+    c.setpoint["hk2"] = 40
+    orig = c.async_write_hk
+
+    async def boom(hk):
+        if hk == "hk1":
+            raise RuntimeError("kaputt")
+        await orig(hk)
+
+    c.async_write_hk = boom
+    await c._write_tick()
+    assert boiler.writes[-1] == (7000, [40])
