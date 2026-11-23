@@ -14,6 +14,7 @@ CONF_HK1_MAX = "hk1_max"
 CONF_HK2_MIN = "hk2_min"
 CONF_HK2_MAX = "hk2_max"
 CONF_EXTRAS = "extras"
+CONF_BUFFER_MIDDLE = "buffer_middle"  # mittlerer Pufferfühler vorhanden (nur mit CONF_EXTRAS)
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT = 1
@@ -68,6 +69,7 @@ class Reg:
     kind: str = "temp"  # temp | percent | code | number
     extra: bool = False  # nur mit Option „Puffer/Boiler“ abfragen
     precision: int = 1
+    option: str | None = None  # nur lesen/anzeigen, wenn diese Option an ist
     # Fehlt ein Fühler, meldet der Kessel einen festen Wert (z. B. 120 °C) – ab hier „nicht vorhanden“
     max_valid: float | None = None
 
@@ -96,7 +98,7 @@ READ_REGISTERS: tuple[Reg, ...] = (
     Reg("lagerstand", 220, "number", precision=0),
     Reg("stoerung", 222, "code"),
     Reg("puffer_oben", 122, extra=True),
-    Reg("puffer_mitte", 254, extra=True),
+    Reg("puffer_mitte", 254, extra=True, option=CONF_BUFFER_MIDDLE),
     Reg("puffer_unten", 124, extra=True),
     Reg("boiler_temp", 10, extra=True),
     Reg("boiler_zustand", 190, "code", extra=True),

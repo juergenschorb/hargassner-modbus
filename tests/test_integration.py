@@ -169,7 +169,7 @@ async def test_options_extras_and_limits(hass: HomeAssistant):
         result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "general"})
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"boiler_type": "nano", "extras": True, "word_swap": True, "heat_limit": 18, "room_gain": 3, "room_boost_max": 10, "room_lower_max": 5},
+            {"boiler_type": "nano", "extras": True, "buffer_middle": False, "word_swap": True, "heat_limit": 18, "room_gain": 3, "room_boost_max": 10, "room_lower_max": 5},
         )
         assert result["type"] is FlowResultType.CREATE_ENTRY
         await hass.async_block_till_done(wait_background_tasks=True)
@@ -418,3 +418,59 @@ async def test_migrates_old_register_defaults(hass: HomeAssistant, boiler):
     assert entry.minor_version == 2
     assert entry.options["hk1_register"] == 6999
     assert entry.options["hk2_register"] == 7000
+
+
+async def test_buffer_middle_is_option_and_stale_entity_removed(hass: HomeAssistant):
+    from homeassistant.helpers import entity_registry as er
+
+    values = {**BOILER_VALUES, 122: 65.0, 124: 40.0, 254: 55.0, 10: 52.0, 190: 1.0}
+    b = FakeBoiler(values)
+    port = await b.start()
+    try:
+        await _setup_via_flow(hass, port)
+        entry = hass.config_entries.async_entries(DOMAIN)[0]
+        general = {"boiler_type": "nano", "extras": True, "word_swap": True, "heat_limit": 18, "room_gain": 3,
+                   "room_boost_max": 10, "room_lower_max": 5}
+
+        async def options(**extra):
+            r = await hass.config_entries.options.async_init(entry.entry_id)
+            r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "general"})
+            r = await hass.config_entries.options.async_configure(r["flow_id"], {**general, **extra})
+            assert r["type"] is FlowResultType.CREATE_ENTRY
+            await hass.async_block_till_done(wait_background_tasks=True)
+
+        middle = lambda: [e for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id) if e.unique_id.endswith("_puffer_mitte")]
+        await options(buffer_middle=True)
+        assert middle()
+        await options(buffer_middle=False)
+        assert not middle()
+        assert hass.states.get("sensor.hargassner_buffer_top") is not None
+    finally:
+        await b.stop()
+
+
+async def test_outdoor_value_held_after_single_read_failure(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    assert c.compute("hk1") is not None
+    c.data = {**c.data, "aussen": None, "aussen_gemittelt": None}
+    assert c.compute("hk1") is not None  # letzter Wert wird gehalten
+    c._last_out = (c._last_out[0], c._last_out[1] - 7200)
+    assert c.compute("hk1") is None  # nach einer Stunde nicht mehr
+
+
+async def test_hk1_error_does_not_block_hk2(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    c.write_enabled["hk2"] = True
+    c.setpoint["hk2"] = 40
+    orig = c.async_write_hk
+
+    async def boom(hk):
+        if hk == "hk1":
+            raise RuntimeError("kaputt")
+        await orig(hk)
+
+    c.async_write_hk = boom
+    await c._write_tick()
+    assert boiler.writes[-1] == (7000, [40])

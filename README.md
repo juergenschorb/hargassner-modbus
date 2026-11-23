@@ -50,7 +50,7 @@ Beim Einrichten liest die Integration Lebenszeichen, Außen- und Kesseltemperatu
 
 Unter **Konfigurieren** gibt es drei Bereiche:
 
-- **Allgemein und Raumbedarf:** Kesseltyp, Puffer und Boiler abfragen, Wortreihenfolge, Heizgrenze und Stärke der Raumkorrektur.
+- **Allgemein und Raumbedarf:** Kesseltyp, Puffer und Boiler abfragen (mittlerer Pufferfühler nur mit eigener Option „Mittlerer Pufferfühler vorhanden“), Wortreihenfolge, Heizgrenze und Stärke der Raumkorrektur.
 - **Heizkreis 1 / Heizkreis 2:** Mindest- und Höchstwert für den Vorlauf (Standard 20–60 °C, darüber wird nie geschrieben), die **Räume** (Thermostate) dieses Heizkreises und die Heizkurve. Räume lassen sich jederzeit hinzufügen oder entfernen.
 
 ## Vorlauf berechnen

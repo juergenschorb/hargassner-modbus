@@ -39,6 +39,7 @@
         "data": {
           "boiler_type": "Boiler type",
           "extras": "Read buffer and hot water",
+          "buffer_middle": "Middle buffer sensor installed",
           "word_swap": "Swap word order (float)",
           "heat_limit": "Heating limit (outdoor)",
           "room_gain": "Raise per K room too cold",

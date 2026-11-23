@@ -5,10 +5,11 @@ from __future__ import annotations
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import HargassnerConfigEntry
-from .const import BOILER_NANO, BOILER_STATES, CONF_BOILER_TYPE, CONF_EXTRAS, HK_STATES, READ_REGISTERS, Reg
+from .const import DOMAIN, BOILER_NANO, BOILER_STATES, CONF_BOILER_TYPE, CONF_EXTRAS, HK_STATES, READ_REGISTERS, Reg
 from .coordinator import HargassnerCoordinator
 from .entity import HargassnerEntity
 
@@ -20,11 +21,12 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     extras = bool(coordinator.options.get(CONF_EXTRAS, False))
+    _remove_unused(hass, entry, coordinator, extras)
     entities: list[SensorEntity] = []
     for reg in READ_REGISTERS:
         if reg.extra and not extras:
             continue
-        if reg.extra and (coordinator.data or {}).get(reg.key) is None:
+        if reg.option and not coordinator.options.get(reg.option, False):
             continue  # z. B. kein mittlerer Pufferfühler: Entität gar nicht anlegen
         if reg.kind == "code" and reg.key in ("kesselzustand", "hk1_zustand", "hk2_zustand"):
             entities.append(HargassnerStateSensor(coordinator, reg))
@@ -34,6 +36,17 @@ async def async_setup_entry(
     entities.append(HargassnerKeepaliveSensor(coordinator))
     entities += [HargassnerFlowCalcSensor(coordinator, hk) for hk in ("hk1", "hk2")]
     async_add_entities(entities)
+
+
+def _remove_unused(hass: HomeAssistant, entry: HargassnerConfigEntry, coordinator, extras: bool) -> None:
+    """Sensoren, die es laut Einstellung nicht gibt (z. B. Puffer Mitte), aus der Registry entfernen."""
+    registry = er.async_get(hass)
+    for reg in READ_REGISTERS:
+        if not reg.option or (extras and coordinator.options.get(reg.option, False)):
+            continue
+        entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{reg.key}")
+        if entity_id:
+            registry.async_remove(entity_id)
 
 
 class HargassnerValueSensor(HargassnerEntity, SensorEntity):

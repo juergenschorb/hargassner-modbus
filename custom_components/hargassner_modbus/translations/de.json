@@ -39,6 +39,7 @@
         "data": {
           "boiler_type": "Kesseltyp",
           "extras": "Puffer und Boiler abfragen",
+          "buffer_middle": "Mittlerer Pufferfühler vorhanden",
           "word_swap": "Wortreihenfolge tauschen (Float)",
           "heat_limit": "Heizgrenze (Außentemperatur)",
           "room_gain": "Anhebung je K Raum zu kalt",

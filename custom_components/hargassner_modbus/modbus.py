@@ -88,6 +88,8 @@ class ModbusClient:
                     while True:
                         head = await asyncio.wait_for(self._reader.readexactly(7), self.timeout)
                         r_tid, _proto, length, _unit = struct.unpack(">HHHB", head)
+                        if not 2 <= length <= 260:
+                            raise OSError(f"ungültige Antwortlänge {length}")
                         body = await asyncio.wait_for(self._reader.readexactly(length - 1), self.timeout)
                         _LOGGER.debug("<- %s:%s %s", self.host, self.port, (head + body).hex(" "))
                         if r_tid == tid:

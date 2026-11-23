@@ -16,6 +16,7 @@ from .const import (
     BOILER_ECO,
     BOILER_NANO,
     CONF_BOILER_TYPE,
+    CONF_BUFFER_MIDDLE,
     CONF_EXTRAS,
     CONF_HK1_MAX,
     CONF_HK1_MIN,
@@ -191,6 +192,7 @@ class HargassnerOptionsFlow(OptionsFlow):
                 {
                     CONF_BOILER_TYPE: user_input[CONF_BOILER_TYPE],
                     CONF_EXTRAS: bool(user_input[CONF_EXTRAS]),
+                    CONF_BUFFER_MIDDLE: bool(user_input[CONF_BUFFER_MIDDLE]),
                     CONF_WORD_SWAP: bool(user_input[CONF_WORD_SWAP]),
                     CONF_HEAT_LIMIT: float(user_input[CONF_HEAT_LIMIT]),
                     CONF_ROOM_GAIN: float(user_input[CONF_ROOM_GAIN]),
@@ -210,6 +212,7 @@ class HargassnerOptionsFlow(OptionsFlow):
                     selector.SelectSelectorConfig(options=[BOILER_NANO, BOILER_ECO], translation_key="boiler_type")
                 ),
                 vol.Required(CONF_EXTRAS, default=o.get(CONF_EXTRAS, False)): bool,
+                vol.Required(CONF_BUFFER_MIDDLE, default=o.get(CONF_BUFFER_MIDDLE, False)): bool,
                 vol.Required(CONF_WORD_SWAP, default=o.get(CONF_WORD_SWAP, True)): bool,
                 vol.Required(CONF_HEAT_LIMIT, default=o.get(CONF_HEAT_LIMIT, DEFAULT_HEAT_LIMIT)): num(5, 30, 0.5, "°C"),
                 vol.Required(CONF_ROOM_GAIN, default=o.get(CONF_ROOM_GAIN, DEFAULT_ROOM_GAIN)): num(0, 10, 0.5, "K/K"),
