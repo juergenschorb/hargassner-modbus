@@ -45,6 +45,9 @@ from .modbus import ModbusClient, ModbusError, decode_float
 _LOGGER = logging.getLogger(__name__)
 
 OUTDOOR_HOLD = 3600  # s: so lange wird eine fehlende Außentemperatur durch den letzten Wert ersetzt
+STARTUP_GRACE = 300  # s: so lange nach dem Start nicht schreiben, solange Räume noch fehlen
+NO_ROOMS = "Warte auf Räume/Zusatzanforderung nach dem Start"
+NO_SETPOINT = "Keine manuelle Vorgabe gesetzt"
 NO_CALC = "Kein berechneter Vorlauf (Außentemperatur fehlt)"
 
 
@@ -70,6 +73,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.auto: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
         self._unsub_write = None
         self._last_out: tuple[float, float] | None = None
+        self._started = monotonic()
 
     @property
     def options(self) -> dict[str, Any]:
@@ -113,9 +117,13 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         curve = c["flow_cold"] + (t_out - c["out_cold"]) * (c["flow_warm"] - c["flow_cold"]) / span
 
         rooms = []
+        missing = 0  # konfiguriert, aber (noch) nicht da – z. B. kurz nach dem Start von HA
         for eid in o.get(f"{hk}_rooms", []) or []:
             st = self.hass.states.get(eid)
-            if st is None or st.state in ("off", "unavailable", "unknown"):
+            if st is None or st.state in ("unavailable", "unknown"):
+                missing += 1
+                continue
+            if st.state == "off":
                 continue
             try:
                 cur = float(st.attributes["current_temperature"])
@@ -162,7 +170,8 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         requests = []
         for eid in o.get(f"{hk}_request_entities", []) or []:
             st = self.hass.states.get(eid)
-            if st is None:
+            if st is None or st.state in ("unavailable", "unknown"):
+                missing += 1
                 continue
             active = st.state in ("on", "heat", "open", "active")
             if not active:
@@ -187,6 +196,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "grund": reason,
             "raeume": len(rooms),
             "anforderung": requests or None,
+            "fehlend": missing,
         }
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -238,6 +248,14 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except Exception:  # noqa: BLE001 - ein Fehler bei HK1 darf HK2 nicht blockieren
                 _LOGGER.exception("Vorlauf-Soll %s konnte nicht gesendet werden", hk.upper())
 
+    @callback
+    def _skip(self, hk: str, reason: str) -> None:
+        """Nicht geschrieben: Grund am Schalter zeigen (Kessel behält den letzten Wert)."""
+        if self.last_write[hk].get("error") != reason:
+            _LOGGER.warning("Vorlauf-Soll %s nicht geschrieben: %s", hk.upper(), reason)
+        self.last_write[hk] = {**self.last_write[hk], "ok": False, "error": reason}
+        self.async_update_listeners()
+
     async def async_write_hk(self, hk: str) -> None:
         """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""
         if not self.write_enabled[hk]:
@@ -245,16 +263,16 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.auto[hk]:
             calc = self.compute(hk)
             setpoint = calc["value"] if calc else None
+            if calc and calc["fehlend"] and monotonic() - self._started < STARTUP_GRACE:
+                self._skip(hk, NO_ROOMS)  # gleich nach dem Start: nicht ohne die Räume rechnen
+                return
             if setpoint is None:
-                # ohne Außentemperatur keine Heizkurve: nichts senden, der Kessel behält den letzten Wert
-                if self.last_write[hk].get("error") != NO_CALC:
-                    _LOGGER.warning("Vorlauf-Soll %s nicht geschrieben: %s", hk.upper(), NO_CALC)
-                self.last_write[hk] = {**self.last_write[hk], "ok": False, "error": NO_CALC}
-                self.async_update_listeners()
+                self._skip(hk, NO_CALC)  # ohne Außentemperatur keine Heizkurve
                 return
         else:
             setpoint = self.setpoint[hk]
         if setpoint is None:
+            self._skip(hk, NO_SETPOINT)
             return
         lo, hi = self.limits(hk)
         value = int(round(max(lo, min(hi, setpoint))))

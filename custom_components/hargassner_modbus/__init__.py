@@ -58,6 +58,7 @@ async def _async_reload(hass: HomeAssistant, entry: HargassnerConfigEntry) -> No
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HargassnerConfigEntry) -> bool:
+    entry.runtime_data.stop_writer()  # kein Schreiben mehr, während entladen wird
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         await entry.runtime_data.client.close()

@@ -138,6 +138,8 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "no_response"
                 details = str(err)
             else:
+                await self.async_set_unique_id(f"{host}:{port}:{unit}")
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title="Hargassner",
                     data={CONF_HOST: host, CONF_PORT: port, CONF_UNIT: unit},

@@ -26,8 +26,8 @@ DEFAULT_HK2_MAX = DEFAULT_HK_MAX
 
 # Lebenszeichen: muss alle 10 s gelesen werden (sonst Störung nach Kesselparameter Z1b)
 REG_KEEPALIVE = 6499
-KEEPALIVE_INTERVAL = 10  # s
-VALUES_EVERY = 3  # Messwerte bei jedem 3. Lebenszeichen lesen, also alle 30 s
+KEEPALIVE_INTERVAL = 8  # s, mit Luft unter 10 s (der nächste Abruf startet erst nach dem vorigen)
+VALUES_EVERY = 4  # Messwerte bei jedem 4. Lebenszeichen lesen, also etwa alle 32 s
 # Solltemperatur HK1/HK2: uint16, FC16, zyklisch alle 60 s wie Loxone.
 # Nur sinnvoll, wenn der Heizkreis am Kessel auf „Loxone“ steht (dann entfällt dessen Heizkurve).
 # Adressen wie in der offiziellen Loxone-Vorlage „Hargassner Heizkesselsteuerung“ (v1.0.1) und im

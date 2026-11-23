@@ -513,3 +513,27 @@ async def test_hk1_error_does_not_block_hk2(hass: HomeAssistant, boiler):
     c.async_write_hk = boom
     await c._write_tick()
     assert boiler.writes[-1] == (7000, [40])
+
+
+async def test_closed_client_does_not_reconnect(boiler):
+    c = ModbusClient("127.0.0.1", boiler.port, 1)
+    await c.read_holding(6499, 2)
+    await c.close()
+    with pytest.raises(ModbusError):
+        await c.read_holding(6499, 2)
+    assert not c.connected
+
+
+async def test_auto_waits_for_rooms_after_start(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "hk1_rooms": ["climate.og_kind"]})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc1"}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes == []  # Thermostat existiert noch nicht
+    assert "Räume" in hass.states.get("switch.hargassner_control_hc1").attributes["fehler"]
+    hass.states.async_set("climate.og_kind", "heat", {"current_temperature": 21.0, "temperature": 21.0})
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes[-1][0] == 6999
+    assert hass.states.get("switch.hargassner_control_hc1").attributes["schreiben_ok"] is True

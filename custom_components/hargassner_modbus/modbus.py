@@ -47,6 +47,7 @@ class ModbusClient:
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
         self._tid = 0
+        self._closed = False  # nach close() nicht mehr neu verbinden (Entladen der Integration)
 
     @property
     def connected(self) -> bool:
@@ -62,6 +63,12 @@ class ModbusClient:
             raise ModbusConnectError(f"Keine Verbindung zu {self.host}:{self.port}: {err}") from err
 
     async def close(self) -> None:
+        """Endgültig schließen: wartet eine laufende Anfrage ab, danach kein Neuverbinden mehr."""
+        self._closed = True
+        async with self._lock:
+            await self._drop()
+
+    async def _drop(self) -> None:
         writer = self._writer
         self._reader = self._writer = None
         if writer is not None:
@@ -75,6 +82,8 @@ class ModbusClient:
         """Eine Anfrage senden und das Antwort-PDU (ohne MBAP-Kopf) zurückgeben."""
         async with self._lock:
             for attempt in (1, 2):
+                if self._closed:
+                    raise ModbusConnectError("Verbindung wurde geschlossen")
                 if not self.connected:
                     await self._connect()
                 self._tid = (self._tid + 1) % 0x10000
@@ -95,7 +104,7 @@ class ModbusClient:
                         if r_tid == tid:
                             break  # alte Antworten (nach Timeout) überspringen
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:
-                    await self.close()
+                    await self._drop()
                     if attempt == 2:
                         raise ModbusNoResponse(f"Verbunden mit {self.host}:{self.port}, aber keine Antwort: {err!r}") from err
                     continue
