@@ -47,6 +47,7 @@ class ModbusClient:
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
         self._tid = 0
+        self._closed = False  # nach close() nicht mehr neu verbinden (Entladen der Integration)
 
     @property
     def connected(self) -> bool:
@@ -62,6 +63,12 @@ class ModbusClient:
             raise ModbusConnectError(f"Keine Verbindung zu {self.host}:{self.port}: {err}") from err
 
     async def close(self) -> None:
+        """Endgültig schließen: wartet eine laufende Anfrage ab, danach kein Neuverbinden mehr."""
+        self._closed = True
+        async with self._lock:
+            await self._drop()
+
+    async def _drop(self) -> None:
         writer = self._writer
         self._reader = self._writer = None
         if writer is not None:
@@ -75,6 +82,8 @@ class ModbusClient:
         """Eine Anfrage senden und das Antwort-PDU (ohne MBAP-Kopf) zurückgeben."""
         async with self._lock:
             for attempt in (1, 2):
+                if self._closed:
+                    raise ModbusConnectError("Verbindung wurde geschlossen")
                 if not self.connected:
                     await self._connect()
                 self._tid = (self._tid + 1) % 0x10000
@@ -88,12 +97,14 @@ class ModbusClient:
                     while True:
                         head = await asyncio.wait_for(self._reader.readexactly(7), self.timeout)
                         r_tid, _proto, length, _unit = struct.unpack(">HHHB", head)
+                        if not 3 <= length <= 254:
+                            raise asyncio.IncompleteReadError(head, None)  # kaputter Rahmen: neu verbinden
                         body = await asyncio.wait_for(self._reader.readexactly(length - 1), self.timeout)
                         _LOGGER.debug("<- %s:%s %s", self.host, self.port, (head + body).hex(" "))
                         if r_tid == tid:
                             break  # alte Antworten (nach Timeout) überspringen
                 except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError) as err:
-                    await self.close()
+                    await self._drop()
                     if attempt == 2:
                         raise ModbusNoResponse(f"Verbunden mit {self.host}:{self.port}, aber keine Antwort: {err!r}") from err
                     continue
@@ -107,7 +118,7 @@ class ModbusClient:
     async def read_holding(self, address: int, count: int) -> list[int]:
         """FC3: Holding-Register lesen."""
         body = await self._request(struct.pack(">BHH", 3, address, count))
-        if body[0] != 3 or body[1] != count * 2:
+        if body[0] != 3 or body[1] != count * 2 or len(body) < 2 + count * 2:
             raise ModbusError(f"Unerwartete Antwort beim Lesen von Register {address}")
         return list(struct.unpack(f">{count}H", body[2 : 2 + count * 2]))
 
@@ -116,7 +127,7 @@ class ModbusClient:
         count = len(values)
         pdu = struct.pack(f">BHHB{count}H", 16, address, count, count * 2, *values)
         body = await self._request(pdu)
-        if body[0] != 16:
+        if body[0] != 16 or body[1:5] != struct.pack(">HH", address, count):
             raise ModbusError(f"Unerwartete Antwort beim Schreiben von Register {address}")
 
 

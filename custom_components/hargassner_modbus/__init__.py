@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_UNIT, DEFAULT_PORT, DEFAULT_UNIT
+from .const import CONF_EXTRA_SENSORS, CONF_EXTRAS, CONF_UNIT, DEFAULT_PORT, DEFAULT_UNIT, EXTRA_KEYS
 from .coordinator import HargassnerCoordinator
 from .modbus import ModbusClient
 
@@ -24,6 +24,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: HargassnerConfigEntry) -
     coordinator = HargassnerCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    if entry.options.get(CONF_EXTRAS) and CONF_EXTRA_SENSORS not in entry.options:
+        # Einmalig merken, welche Puffer-/Boilerfühler einen Wert liefern (fehlender Fühler meldet 120 °C)
+        found = [k for k in EXTRA_KEYS if coordinator.data.get(k) is not None]
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_EXTRA_SENSORS: found})
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     coordinator.start_writer()
     entry.async_on_unload(coordinator.stop_writer)
@@ -54,6 +58,7 @@ async def _async_reload(hass: HomeAssistant, entry: HargassnerConfigEntry) -> No
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HargassnerConfigEntry) -> bool:
+    entry.runtime_data.stop_writer()  # kein Schreiben mehr, während entladen wird
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if ok:
         await entry.runtime_data.client.close()

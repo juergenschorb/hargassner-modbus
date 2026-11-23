@@ -17,6 +17,8 @@ from .const import (
     BOILER_NANO,
     CONF_BOILER_TYPE,
     CONF_EXTRAS,
+    CONF_EXTRA_SENSORS,
+    EXTRA_KEYS,
     CONF_HK1_MAX,
     CONF_HK1_MIN,
     CONF_HK2_MAX,
@@ -136,6 +138,8 @@ class HargassnerConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "no_response"
                 details = str(err)
             else:
+                await self.async_set_unique_id(f"{host}:{port}:{unit}")
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title="Hargassner",
                     data={CONF_HOST: host, CONF_PORT: port, CONF_UNIT: unit},
@@ -187,29 +191,33 @@ class HargassnerOptionsFlow(OptionsFlow):
     async def async_step_general(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         o = self.config_entry.options
         if user_input is not None:
-            return self._save(
-                {
-                    CONF_BOILER_TYPE: user_input[CONF_BOILER_TYPE],
-                    CONF_EXTRAS: bool(user_input[CONF_EXTRAS]),
-                    CONF_WORD_SWAP: bool(user_input[CONF_WORD_SWAP]),
-                    CONF_HEAT_LIMIT: float(user_input[CONF_HEAT_LIMIT]),
-                    CONF_ROOM_GAIN: float(user_input[CONF_ROOM_GAIN]),
-                    CONF_ROOM_BOOST_MAX: float(user_input[CONF_ROOM_BOOST_MAX]),
-                    CONF_ROOM_LOWER_MAX: float(user_input[CONF_ROOM_LOWER_MAX]),
-                }
-            )
+            extra: dict[str, Any] = {}
+            if o.get(CONF_EXTRAS) and user_input[CONF_EXTRAS]:
+                extra[CONF_EXTRA_SENSORS] = [k for k in EXTRA_KEYS if k in user_input.get(CONF_EXTRA_SENSORS, [])]
+            if not user_input[CONF_EXTRAS] or not o.get(CONF_EXTRAS):
+                # neu eingeschaltet oder aus: beim nächsten Start erkennen, welche Fühler verbaut sind
+                new_opts = {k: v for k, v in o.items() if k != CONF_EXTRA_SENSORS}
+                return self.async_create_entry(data={**new_opts, **self._general(user_input)})
+            return self._save({**self._general(user_input), **extra})
 
         def num(lo, hi, step, unit):
             return selector.NumberSelector(
                 selector.NumberSelectorConfig(min=lo, max=hi, step=step, unit_of_measurement=unit, mode=selector.NumberSelectorMode.BOX)
             )
 
+        # Auswahl der verbauten Fühler erst, wenn Puffer/Boiler schon abgefragt werden (dann ist erkannt, was da ist)
+        extra_field: dict = {}
+        if o.get(CONF_EXTRAS):
+            extra_field[vol.Optional(CONF_EXTRA_SENSORS, default=list(o.get(CONF_EXTRA_SENSORS, EXTRA_KEYS)))] = selector.SelectSelector(
+                selector.SelectSelectorConfig(options=list(EXTRA_KEYS), multiple=True, translation_key="extra_sensors")
+            )
         schema = vol.Schema(
             {
                 vol.Required(CONF_BOILER_TYPE, default=o.get(CONF_BOILER_TYPE, BOILER_NANO)): selector.SelectSelector(
                     selector.SelectSelectorConfig(options=[BOILER_NANO, BOILER_ECO], translation_key="boiler_type")
                 ),
                 vol.Required(CONF_EXTRAS, default=o.get(CONF_EXTRAS, False)): bool,
+                **extra_field,
                 vol.Required(CONF_WORD_SWAP, default=o.get(CONF_WORD_SWAP, True)): bool,
                 vol.Required(CONF_HEAT_LIMIT, default=o.get(CONF_HEAT_LIMIT, DEFAULT_HEAT_LIMIT)): num(5, 30, 0.5, "°C"),
                 vol.Required(CONF_ROOM_GAIN, default=o.get(CONF_ROOM_GAIN, DEFAULT_ROOM_GAIN)): num(0, 10, 0.5, "K/K"),
@@ -218,6 +226,18 @@ class HargassnerOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(step_id="general", data_schema=schema)
+
+    @staticmethod
+    def _general(user_input: dict[str, Any]) -> dict[str, Any]:
+        return {
+            CONF_BOILER_TYPE: user_input[CONF_BOILER_TYPE],
+            CONF_EXTRAS: bool(user_input[CONF_EXTRAS]),
+            CONF_WORD_SWAP: bool(user_input[CONF_WORD_SWAP]),
+            CONF_HEAT_LIMIT: float(user_input[CONF_HEAT_LIMIT]),
+            CONF_ROOM_GAIN: float(user_input[CONF_ROOM_GAIN]),
+            CONF_ROOM_BOOST_MAX: float(user_input[CONF_ROOM_BOOST_MAX]),
+            CONF_ROOM_LOWER_MAX: float(user_input[CONF_ROOM_LOWER_MAX]),
+        }
 
     async def _hk_step(self, hk: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
         o = self.config_entry.options

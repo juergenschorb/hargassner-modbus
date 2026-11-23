@@ -14,6 +14,8 @@ CONF_HK1_MAX = "hk1_max"
 CONF_HK2_MIN = "hk2_min"
 CONF_HK2_MAX = "hk2_max"
 CONF_EXTRAS = "extras"
+# Welche Puffer-/Boilerfühler verbaut sind (Liste der Register-Schlüssel); fehlt sie, wird erkannt
+CONF_EXTRA_SENSORS = "extra_sensors"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT = 1
@@ -24,8 +26,8 @@ DEFAULT_HK2_MAX = DEFAULT_HK_MAX
 
 # Lebenszeichen: muss alle 10 s gelesen werden (sonst Störung nach Kesselparameter Z1b)
 REG_KEEPALIVE = 6499
-KEEPALIVE_INTERVAL = 10  # s
-VALUES_EVERY = 3  # Messwerte bei jedem 3. Lebenszeichen lesen, also alle 30 s
+KEEPALIVE_INTERVAL = 8  # s, mit Luft unter 10 s (der nächste Abruf startet erst nach dem vorigen)
+VALUES_EVERY = 4  # Messwerte bei jedem 4. Lebenszeichen lesen, also etwa alle 32 s
 # Solltemperatur HK1/HK2: uint16, FC16, zyklisch alle 60 s wie Loxone.
 # Nur sinnvoll, wenn der Heizkreis am Kessel auf „Loxone“ steht (dann entfällt dessen Heizkurve).
 # Adressen wie in der offiziellen Loxone-Vorlage „Hargassner Heizkesselsteuerung“ (v1.0.1) und im
@@ -101,6 +103,8 @@ READ_REGISTERS: tuple[Reg, ...] = (
     Reg("boiler_temp", 10, extra=True),
     Reg("boiler_zustand", 190, "code", extra=True),
 )
+
+EXTRA_KEYS: tuple[str, ...] = tuple(r.key for r in READ_REGISTERS if r.extra)
 
 # ---------- Vorlauf-Berechnung (Heizkurve + Raumbedarf) ----------
 CONF_HEAT_LIMIT = "heat_limit"  # ab dieser Außentemperatur nur noch Mindest-Vorlauf

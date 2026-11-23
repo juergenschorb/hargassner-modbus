@@ -418,3 +418,122 @@ async def test_migrates_old_register_defaults(hass: HomeAssistant, boiler):
     assert entry.minor_version == 2
     assert entry.options["hk1_register"] == 6999
     assert entry.options["hk2_register"] == 7000
+
+
+async def _general(hass, entry, **kw):
+    data = {"boiler_type": "nano", "extras": True, "word_swap": True, "heat_limit": 18, "room_gain": 3, "room_boost_max": 10, "room_lower_max": 5, **kw}
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "general"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], data)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return result
+
+
+async def test_extra_sensors_detected_and_selectable(hass: HomeAssistant):
+    from homeassistant.helpers import entity_registry as er
+
+    values = {**BOILER_VALUES, 122: 65.0, 124: 40.0, 254: 120.0, 10: 52.0, 190: 1.0}
+    b = FakeBoiler(values)
+    port = await b.start()
+    try:
+        await _setup_via_flow(hass, port)
+        entry = hass.config_entries.async_entries(DOMAIN)[0]
+        reg = er.async_get(hass)
+        # Altlast aus früheren Versionen: Entität „Puffer Mitte“ steht noch in der Registry
+        reg.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_puffer_mitte", config_entry=entry)
+        await _general(hass, entry)  # Puffer/Boiler einschalten -> Fühler werden erkannt
+        assert entry.options["extra_sensors"] == ["puffer_oben", "puffer_unten", "boiler_temp", "boiler_zustand"]
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_puffer_mitte") is None
+        k = len(b.reads)
+        for i in range(1, 5):
+            async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11 * i))
+            await hass.async_block_till_done(wait_background_tasks=True)
+        assert 122 in b.reads[k:] and 254 not in b.reads[k:]  # nicht verbauter Fühler wird nicht mehr abgefragt
+        assert hass.states.get("sensor.hargassner_buffer_bottom").state == "40.0"
+        # Boiler abwählen -> Entität verschwindet
+        await _general(hass, entry, extra_sensors=["puffer_oben", "puffer_unten"])
+        assert entry.options["extra_sensors"] == ["puffer_oben", "puffer_unten"]
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_boiler_temp") is None
+        assert hass.states.get("sensor.hargassner_buffer_top").state == "65.0"
+        # Puffer/Boiler aus -> alle weg
+        await _general(hass, entry, extras=False)
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_puffer_oben") is None
+        assert "extra_sensors" not in entry.options
+    finally:
+        await b.stop()
+
+
+async def test_auto_without_outdoor_writes_nothing(hass: HomeAssistant, boiler, monkeypatch):
+    from custom_components.hargassner_modbus import coordinator as coord
+
+    monkeypatch.setattr(coord, "OUTDOOR_HOLD", 0)  # letzten Außenwert nicht halten
+    await _setup_via_flow(hass, boiler.port)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc1"}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes[-1] == (6999, [36])
+    # Außenfühler fällt aus (meldet Unsinn) -> keine Heizkurve -> nichts senden, Fehler am Schalter
+    boiler.set(8, 999.0)
+    boiler.set(6, 999.0)
+    for i in range(1, 5):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11 * i))
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get("sensor.hargassner_outdoor_temperature").state == "unknown"
+    n = len(boiler.writes)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=125))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(boiler.writes) == n
+    st = hass.states.get("switch.hargassner_control_hc1")
+    assert st.attributes["schreiben_ok"] is False
+    assert "Außentemperatur" in st.attributes["fehler"]
+
+
+async def test_outdoor_value_held_after_single_read_failure(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    assert c.compute("hk1") is not None
+    c.data = {**c.data, "aussen": None, "aussen_gemittelt": None}
+    assert c.compute("hk1") is not None  # letzter Wert wird gehalten
+    c._last_out = (c._last_out[0], c._last_out[1] - 7200)
+    assert c.compute("hk1") is None  # nach einer Stunde nicht mehr
+
+
+async def test_hk1_error_does_not_block_hk2(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    c = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    c.write_enabled["hk2"] = True
+    c.setpoint["hk2"] = 40
+    orig = c.async_write_hk
+
+    async def boom(hk):
+        if hk == "hk1":
+            raise RuntimeError("kaputt")
+        await orig(hk)
+
+    c.async_write_hk = boom
+    await c._write_tick()
+    assert boiler.writes[-1] == (7000, [40])
+
+
+async def test_closed_client_does_not_reconnect(boiler):
+    c = ModbusClient("127.0.0.1", boiler.port, 1)
+    await c.read_holding(6499, 2)
+    await c.close()
+    with pytest.raises(ModbusError):
+        await c.read_holding(6499, 2)
+    assert not c.connected
+
+
+async def test_auto_waits_for_rooms_after_start(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.config_entries.async_update_entry(entry, options={**entry.options, "hk1_rooms": ["climate.og_kind"]})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc1"}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes == []  # Thermostat existiert noch nicht
+    assert "Räume" in hass.states.get("switch.hargassner_control_hc1").attributes["fehler"]
+    hass.states.async_set("climate.og_kind", "heat", {"current_temperature": 21.0, "temperature": 21.0})
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes[-1][0] == 6999
+    assert hass.states.get("switch.hargassner_control_hc1").attributes["schreiben_ok"] is True

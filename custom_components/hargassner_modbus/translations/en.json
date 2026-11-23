@@ -43,12 +43,14 @@
           "heat_limit": "Heating limit (outdoor)",
           "room_gain": "Raise per K room too cold",
           "room_boost_max": "Maximum raise",
-          "room_lower_max": "Maximum lowering"
+          "room_lower_max": "Maximum lowering",
+          "extra_sensors": "Installed sensors"
         },
         "data_description": {
           "word_swap": "Detected during setup. Only change if temperatures look wrong.",
           "heat_limit": "From this averaged outdoor temperature only the minimum flow is requested.",
-          "room_gain": "If the coldest room is 1 K below target, the flow rises by this value. If all rooms are above target, it drops accordingly."
+          "room_gain": "If the coldest room is 1 K below target, the flow rises by this value. If all rooms are above target, it drops accordingly.",
+          "extra_sensors": "Deselect sensors that are not installed (e.g. buffer middle); their entity is removed."
         }
       },
       "hk1": {
@@ -114,6 +116,15 @@
       "options": {
         "nano": "Nano-PK / HSV / CL",
         "eco": "Eco-PK / Eco-HK / WTH-Touch"
+      }
+    },
+    "extra_sensors": {
+      "options": {
+        "puffer_oben": "Buffer top",
+        "puffer_mitte": "Buffer middle",
+        "puffer_unten": "Buffer bottom",
+        "boiler_temp": "Hot water temperature",
+        "boiler_zustand": "Hot water state"
       }
     }
   },

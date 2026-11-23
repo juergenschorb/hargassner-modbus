@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 import math
+from time import monotonic
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,6 +15,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_EXTRAS,
+    CONF_EXTRA_SENSORS,
+    EXTRA_KEYS,
     CONF_WORD_SWAP,
     CONF_HEAT_LIMIT,
     CONF_ROOM_BOOST_MAX,
@@ -41,6 +44,12 @@ from .modbus import ModbusClient, ModbusError, decode_float
 
 _LOGGER = logging.getLogger(__name__)
 
+OUTDOOR_HOLD = 3600  # s: so lange wird eine fehlende Außentemperatur durch den letzten Wert ersetzt
+STARTUP_GRACE = 300  # s: so lange nach dem Start nicht schreiben, solange Räume noch fehlen
+NO_ROOMS = "Warte auf Räume/Zusatzanforderung nach dem Start"
+NO_SETPOINT = "Keine manuelle Vorgabe gesetzt"
+NO_CALC = "Kein berechneter Vorlauf (Außentemperatur fehlt)"
+
 
 class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Liest alle 10 s das Lebenszeichen, alle 30 s die Messwerte und schreibt HK1/HK2."""
@@ -63,10 +72,22 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Automatik: statt der manuellen Vorgabe den berechneten Vorlauf senden
         self.auto: dict[str, bool] = {hk: False for hk in HK_SETPOINT_REGS}
         self._unsub_write = None
+        self._last_out: tuple[float, float] | None = None
+        self._started = monotonic()
 
     @property
     def options(self) -> dict[str, Any]:
         return {**self.config_entry.data, **self.config_entry.options}
+
+    def extra_keys(self) -> list[str]:
+        """Puffer-/Boilerfühler, die abgefragt und als Entität angelegt werden."""
+        o = self.options
+        if not o.get(CONF_EXTRAS, False):
+            return []
+        chosen = o.get(CONF_EXTRA_SENSORS)
+        if chosen is None:
+            return list(EXTRA_KEYS)  # noch nicht festgelegt: alle abfragen, beim Start erkennen
+        return [k for k in EXTRA_KEYS if k in chosen]
 
     def register(self, hk: str) -> int:
         return int(self.options.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))
@@ -82,6 +103,11 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         t_out = data.get("aussen_gemittelt")
         if t_out is None:
             t_out = data.get("aussen")
+        now = monotonic()
+        if t_out is not None:
+            self._last_out = (t_out, now)
+        elif self._last_out and now - self._last_out[1] <= OUTDOOR_HOLD:
+            t_out = self._last_out[0]  # einzelner Lesefehler: letzten Wert noch eine Weile verwenden
         if t_out is None:
             return None
         c = {k: float(o.get(f"{hk}_{k}", v)) for k, v in DEFAULT_CURVE.items()}
@@ -91,9 +117,13 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         curve = c["flow_cold"] + (t_out - c["out_cold"]) * (c["flow_warm"] - c["flow_cold"]) / span
 
         rooms = []
+        missing = 0  # konfiguriert, aber (noch) nicht da – z. B. kurz nach dem Start von HA
         for eid in o.get(f"{hk}_rooms", []) or []:
             st = self.hass.states.get(eid)
-            if st is None or st.state in ("off", "unavailable", "unknown"):
+            if st is None or st.state in ("unavailable", "unknown"):
+                missing += 1
+                continue
+            if st.state == "off":
                 continue
             try:
                 cur = float(st.attributes["current_temperature"])
@@ -140,7 +170,8 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         requests = []
         for eid in o.get(f"{hk}_request_entities", []) or []:
             st = self.hass.states.get(eid)
-            if st is None:
+            if st is None or st.state in ("unavailable", "unknown"):
+                missing += 1
                 continue
             active = st.state in ("on", "heat", "open", "active")
             if not active:
@@ -165,6 +196,7 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "grund": reason,
             "raeume": len(rooms),
             "anforderung": requests or None,
+            "fehlend": missing,
         }
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -175,10 +207,10 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
 
         if self._cycle % VALUES_EVERY == 0 or not self._values:
-            extras = bool(self.options.get(CONF_EXTRAS, False))
+            extras = set(self.extra_keys())
             values: dict[str, Any] = {}
             for reg in READ_REGISTERS:
-                if reg.extra and not extras:
+                if reg.extra and reg.key not in extras:
                     continue
                 try:
                     v = decode_float(await self.client.read_holding(reg.address, 2), swap)
@@ -211,16 +243,36 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _write_tick(self, _now=None) -> None:
         for hk in HK_SETPOINT_REGS:
-            await self.async_write_hk(hk)
+            try:
+                await self.async_write_hk(hk)
+            except Exception:  # noqa: BLE001 - ein Fehler bei HK1 darf HK2 nicht blockieren
+                _LOGGER.exception("Vorlauf-Soll %s konnte nicht gesendet werden", hk.upper())
+
+    @callback
+    def _skip(self, hk: str, reason: str) -> None:
+        """Nicht geschrieben: Grund am Schalter zeigen (Kessel behält den letzten Wert)."""
+        if self.last_write[hk].get("error") != reason:
+            _LOGGER.warning("Vorlauf-Soll %s nicht geschrieben: %s", hk.upper(), reason)
+        self.last_write[hk] = {**self.last_write[hk], "ok": False, "error": reason}
+        self.async_update_listeners()
 
     async def async_write_hk(self, hk: str) -> None:
         """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""
+        if not self.write_enabled[hk]:
+            return
         if self.auto[hk]:
             calc = self.compute(hk)
             setpoint = calc["value"] if calc else None
+            if calc and calc["fehlend"] and monotonic() - self._started < STARTUP_GRACE:
+                self._skip(hk, NO_ROOMS)  # gleich nach dem Start: nicht ohne die Räume rechnen
+                return
+            if setpoint is None:
+                self._skip(hk, NO_CALC)  # ohne Außentemperatur keine Heizkurve
+                return
         else:
             setpoint = self.setpoint[hk]
-        if not self.write_enabled[hk] or setpoint is None:
+        if setpoint is None:
+            self._skip(hk, NO_SETPOINT)
             return
         lo, hi = self.limits(hk)
         value = int(round(max(lo, min(hi, setpoint))))
