@@ -43,12 +43,14 @@
           "heat_limit": "Heizgrenze (Außentemperatur)",
           "room_gain": "Anhebung je K Raum zu kalt",
           "room_boost_max": "Anhebung höchstens",
-          "room_lower_max": "Absenkung höchstens"
+          "room_lower_max": "Absenkung höchstens",
+          "extra_sensors": "Verbaute Fühler"
         },
         "data_description": {
           "word_swap": "Wird beim Einrichten automatisch erkannt. Nur ändern, wenn die Temperaturen Unsinn zeigen.",
           "heat_limit": "Ab dieser gemittelten Außentemperatur wird nur noch der Mindest-Vorlauf vorgegeben.",
-          "room_gain": "Ist der kälteste Raum 1 K unter Soll, steigt der Vorlauf um diesen Wert. Sind alle Räume über Soll, sinkt er entsprechend."
+          "room_gain": "Ist der kälteste Raum 1 K unter Soll, steigt der Vorlauf um diesen Wert. Sind alle Räume über Soll, sinkt er entsprechend.",
+          "extra_sensors": "Nicht verbaute Fühler (z. B. Puffer Mitte) abwählen, dann verschwindet ihre Entität."
         }
       },
       "hk1": {
@@ -114,6 +116,15 @@
       "options": {
         "nano": "Nano-PK / HSV / CL",
         "eco": "Eco-PK / Eco-HK / WTH-Touch"
+      }
+    },
+    "extra_sensors": {
+      "options": {
+        "puffer_oben": "Puffer oben",
+        "puffer_mitte": "Puffer Mitte",
+        "puffer_unten": "Puffer unten",
+        "boiler_temp": "Boilertemperatur",
+        "boiler_zustand": "Boiler Zustand"
       }
     }
   },

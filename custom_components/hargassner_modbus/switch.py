@@ -22,7 +22,7 @@ async def async_setup_entry(
 
 
 class HkWriteSwitch(HargassnerEntity, SwitchEntity, RestoreEntity):
-    """Nur wenn an, schreibt HA alle 60 s die Solltemperatur des Heizkreises (HK1 6998, HK2 6999).
+    """Nur wenn an, schreibt HA alle 60 s die Solltemperatur des Heizkreises (HK1 6999, HK2 7000).
 
     Nach der Einrichtung aus. Nie gleichzeitig mit Loxone einschalten, und nur für
     einen Heizkreis, der am Kessel auf „Loxone“ steht.

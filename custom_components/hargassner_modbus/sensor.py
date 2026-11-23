@@ -5,10 +5,11 @@ from __future__ import annotations
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import HargassnerConfigEntry
-from .const import BOILER_NANO, BOILER_STATES, CONF_BOILER_TYPE, CONF_EXTRAS, HK_STATES, READ_REGISTERS, Reg
+from .const import BOILER_NANO, BOILER_STATES, CONF_BOILER_TYPE, DOMAIN, EXTRA_KEYS, HK_STATES, READ_REGISTERS, Reg
 from .coordinator import HargassnerCoordinator
 from .entity import HargassnerEntity
 
@@ -19,13 +20,18 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: HargassnerConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data
-    extras = bool(coordinator.options.get(CONF_EXTRAS, False))
+    extras = set(coordinator.extra_keys())
+    # abgewählte Fühler (z. B. kein mittlerer Pufferfühler) ganz entfernen statt „nicht verfügbar“
+    registry = er.async_get(hass)
+    for key in EXTRA_KEYS:
+        if key in extras:
+            continue
+        if eid := registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}"):
+            registry.async_remove(eid)
     entities: list[SensorEntity] = []
     for reg in READ_REGISTERS:
-        if reg.extra and not extras:
+        if reg.extra and reg.key not in extras:
             continue
-        if reg.extra and (coordinator.data or {}).get(reg.key) is None:
-            continue  # z. B. kein mittlerer Pufferfühler: Entität gar nicht anlegen
         if reg.kind == "code" and reg.key in ("kesselzustand", "hk1_zustand", "hk2_zustand"):
             entities.append(HargassnerStateSensor(coordinator, reg))
             entities.append(HargassnerValueSensor(coordinator, reg, code=True))

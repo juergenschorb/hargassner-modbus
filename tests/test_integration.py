@@ -418,3 +418,68 @@ async def test_migrates_old_register_defaults(hass: HomeAssistant, boiler):
     assert entry.minor_version == 2
     assert entry.options["hk1_register"] == 6999
     assert entry.options["hk2_register"] == 7000
+
+
+async def _general(hass, entry, **kw):
+    data = {"boiler_type": "nano", "extras": True, "word_swap": True, "heat_limit": 18, "room_gain": 3, "room_boost_max": 10, "room_lower_max": 5, **kw}
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "general"})
+    result = await hass.config_entries.options.async_configure(result["flow_id"], data)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done(wait_background_tasks=True)
+    return result
+
+
+async def test_extra_sensors_detected_and_selectable(hass: HomeAssistant):
+    from homeassistant.helpers import entity_registry as er
+
+    values = {**BOILER_VALUES, 122: 65.0, 124: 40.0, 254: 120.0, 10: 52.0, 190: 1.0}
+    b = FakeBoiler(values)
+    port = await b.start()
+    try:
+        await _setup_via_flow(hass, port)
+        entry = hass.config_entries.async_entries(DOMAIN)[0]
+        reg = er.async_get(hass)
+        # Altlast aus früheren Versionen: Entität „Puffer Mitte“ steht noch in der Registry
+        reg.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_puffer_mitte", config_entry=entry)
+        await _general(hass, entry)  # Puffer/Boiler einschalten -> Fühler werden erkannt
+        assert entry.options["extra_sensors"] == ["puffer_oben", "puffer_unten", "boiler_temp", "boiler_zustand"]
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_puffer_mitte") is None
+        k = len(b.reads)
+        for i in range(1, 5):
+            async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11 * i))
+            await hass.async_block_till_done(wait_background_tasks=True)
+        assert 122 in b.reads[k:] and 254 not in b.reads[k:]  # nicht verbauter Fühler wird nicht mehr abgefragt
+        assert hass.states.get("sensor.hargassner_buffer_bottom").state == "40.0"
+        # Boiler abwählen -> Entität verschwindet
+        await _general(hass, entry, extra_sensors=["puffer_oben", "puffer_unten"])
+        assert entry.options["extra_sensors"] == ["puffer_oben", "puffer_unten"]
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_boiler_temp") is None
+        assert hass.states.get("sensor.hargassner_buffer_top").state == "65.0"
+        # Puffer/Boiler aus -> alle weg
+        await _general(hass, entry, extras=False)
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_puffer_oben") is None
+        assert "extra_sensors" not in entry.options
+    finally:
+        await b.stop()
+
+
+async def test_auto_without_outdoor_writes_nothing(hass: HomeAssistant, boiler):
+    await _setup_via_flow(hass, boiler.port)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_automatic_hc1"}, blocking=True)
+    await hass.services.async_call("switch", "turn_on", {"entity_id": "switch.hargassner_control_hc1"}, blocking=True)
+    assert boiler.writes[-1] == (6999, [36])
+    # Außenfühler fällt aus (meldet Unsinn) -> keine Heizkurve -> nichts senden, Fehler am Schalter
+    boiler.set(8, 999.0)
+    boiler.set(6, 999.0)
+    for i in range(1, 5):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11 * i))
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get("sensor.hargassner_outdoor_temperature").state == "unknown"
+    n = len(boiler.writes)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=125))
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(boiler.writes) == n
+    st = hass.states.get("switch.hargassner_control_hc1")
+    assert st.attributes["schreiben_ok"] is False
+    assert "Außentemperatur" in st.attributes["fehler"]

@@ -88,6 +88,8 @@ class ModbusClient:
                     while True:
                         head = await asyncio.wait_for(self._reader.readexactly(7), self.timeout)
                         r_tid, _proto, length, _unit = struct.unpack(">HHHB", head)
+                        if not 3 <= length <= 254:
+                            raise asyncio.IncompleteReadError(head, None)  # kaputter Rahmen: neu verbinden
                         body = await asyncio.wait_for(self._reader.readexactly(length - 1), self.timeout)
                         _LOGGER.debug("<- %s:%s %s", self.host, self.port, (head + body).hex(" "))
                         if r_tid == tid:
@@ -107,7 +109,7 @@ class ModbusClient:
     async def read_holding(self, address: int, count: int) -> list[int]:
         """FC3: Holding-Register lesen."""
         body = await self._request(struct.pack(">BHH", 3, address, count))
-        if body[0] != 3 or body[1] != count * 2:
+        if body[0] != 3 or body[1] != count * 2 or len(body) < 2 + count * 2:
             raise ModbusError(f"Unerwartete Antwort beim Lesen von Register {address}")
         return list(struct.unpack(f">{count}H", body[2 : 2 + count * 2]))
 
@@ -116,7 +118,7 @@ class ModbusClient:
         count = len(values)
         pdu = struct.pack(f">BHHB{count}H", 16, address, count, count * 2, *values)
         body = await self._request(pdu)
-        if body[0] != 16:
+        if body[0] != 16 or body[1:5] != struct.pack(">HH", address, count):
             raise ModbusError(f"Unerwartete Antwort beim Schreiben von Register {address}")
 
 

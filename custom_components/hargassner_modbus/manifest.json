@@ -1,12 +1,14 @@
 {
   "domain": "hargassner_modbus",
   "name": "Hargassner Modbus",
-  "codeowners": ["@juergenschorb"],
+  "codeowners": [
+    "@juergenschorb"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/juergenschorb/hargassner-modbus",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/juergenschorb/hargassner-modbus/issues",
   "requirements": [],
-  "version": "0.5.2"
+  "version": "0.6.0"
 }

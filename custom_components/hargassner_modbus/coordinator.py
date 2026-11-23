@@ -14,6 +14,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_EXTRAS,
+    CONF_EXTRA_SENSORS,
+    EXTRA_KEYS,
     CONF_WORD_SWAP,
     CONF_HEAT_LIMIT,
     CONF_ROOM_BOOST_MAX,
@@ -41,6 +43,8 @@ from .modbus import ModbusClient, ModbusError, decode_float
 
 _LOGGER = logging.getLogger(__name__)
 
+NO_CALC = "Kein berechneter Vorlauf (Außentemperatur fehlt)"
+
 
 class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Liest alle 10 s das Lebenszeichen, alle 30 s die Messwerte und schreibt HK1/HK2."""
@@ -67,6 +71,16 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def options(self) -> dict[str, Any]:
         return {**self.config_entry.data, **self.config_entry.options}
+
+    def extra_keys(self) -> list[str]:
+        """Puffer-/Boilerfühler, die abgefragt und als Entität angelegt werden."""
+        o = self.options
+        if not o.get(CONF_EXTRAS, False):
+            return []
+        chosen = o.get(CONF_EXTRA_SENSORS)
+        if chosen is None:
+            return list(EXTRA_KEYS)  # noch nicht festgelegt: alle abfragen, beim Start erkennen
+        return [k for k in EXTRA_KEYS if k in chosen]
 
     def register(self, hk: str) -> int:
         return int(self.options.get(f"{hk}_register", HK_SETPOINT_REGS[hk]))
@@ -175,10 +189,10 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
 
         if self._cycle % VALUES_EVERY == 0 or not self._values:
-            extras = bool(self.options.get(CONF_EXTRAS, False))
+            extras = set(self.extra_keys())
             values: dict[str, Any] = {}
             for reg in READ_REGISTERS:
-                if reg.extra and not extras:
+                if reg.extra and reg.key not in extras:
                     continue
                 try:
                     v = decode_float(await self.client.read_holding(reg.address, 2), swap)
@@ -215,12 +229,21 @@ class HargassnerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_write_hk(self, hk: str) -> None:
         """Vorlauf-Soll eines Heizkreises senden, aber nur wenn freigegeben."""
+        if not self.write_enabled[hk]:
+            return
         if self.auto[hk]:
             calc = self.compute(hk)
             setpoint = calc["value"] if calc else None
+            if setpoint is None:
+                # ohne Außentemperatur keine Heizkurve: nichts senden, der Kessel behält den letzten Wert
+                if self.last_write[hk].get("error") != NO_CALC:
+                    _LOGGER.warning("Vorlauf-Soll %s nicht geschrieben: %s", hk.upper(), NO_CALC)
+                self.last_write[hk] = {**self.last_write[hk], "ok": False, "error": NO_CALC}
+                self.async_update_listeners()
+                return
         else:
             setpoint = self.setpoint[hk]
-        if not self.write_enabled[hk] or setpoint is None:
+        if setpoint is None:
             return
         lo, hi = self.limits(hk)
         value = int(round(max(lo, min(hi, setpoint))))
